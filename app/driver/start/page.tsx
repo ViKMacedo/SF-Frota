@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { getStorage } from "@/lib/storage";
 import { createTrip, getActiveTrip } from "@/services/tripService";
+import { updateVehicleStatus } from "@/services/vehicleService";
 
 export default function DriverStartPage() {
   const [error, setError] = useState("");
@@ -71,6 +72,8 @@ export default function DriverStartPage() {
       status: "Em andamento",
       synced: false,
     });
+
+    await updateVehicleStatus(vehicle.id, "Em uso");
 
     router.push("/driver/running");
   }

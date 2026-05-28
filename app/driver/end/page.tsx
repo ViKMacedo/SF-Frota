@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { finishTrip, getActiveTrip } from "@/services/tripService";
 import type { Trip } from "@/lib/db";
+import { updateVehicleStatus } from "@/services/vehicleService";
 
 export default function DriverEndPage() {
   const router = useRouter();
@@ -70,7 +71,7 @@ export default function DriverEndPage() {
       status: "Finalizada",
       synced: false,
     });
-
+    await updateVehicleStatus(trip.vehicleId, "Disponível");
     router.push("/driver/success");
   }
 

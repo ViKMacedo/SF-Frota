@@ -1,29 +1,53 @@
 "use client";
-import { useEffect } from "react";
 
-import { MobileLayout } from "@/components/layout/mobile-layout";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect } from "react";
+
 import { useRouter } from "next/navigation";
-import { getActiveTrip } from "@/services/tripService";
+import { MobileLayout } from "@/components/layout/mobile-layout";
+import { QRScanner } from "@/components/driver/qrscanner";
 import { saveStorage } from "@/lib/storage";
-import Image from "next/image";
+import { getVehicleById } from "@/services/vehicleService";
+import { getActiveTrip } from "@/services/tripService";
 
 export default function DriverScanPage() {
   const router = useRouter();
+
   useEffect(() => {
     async function checkActiveTrip() {
       const activeTrip = await getActiveTrip();
-
       if (activeTrip) {
         router.push("/driver/running");
       }
     }
-
     checkActiveTrip();
   }, [router]);
+
+  const handleScanSuccess = useCallback(
+    async (decodedText: string) => {
+      try {
+        const data = JSON.parse(decodedText);
+        if (!data.vehicleId) {
+          alert("QR inválido");
+          return;
+        }
+
+        const vehicle = await getVehicleById(Number(data.vehicleId));
+        if (!vehicle) {
+          alert("Veículo não encontrado");
+          return;
+        }
+        saveStorage("vehicle", vehicle);
+        router.push("/driver/start");
+      } catch {
+        alert("Erro ao ler QR Code");
+      }
+    },
+    [router],
+  );
+
   return (
     <MobileLayout>
-      <main className="min-h-screen bg-gradient-to-b from-indigo-950 to-indigo-900 text-white text-white max-w-sm mx-auto flex flex-col p-6">
+      <main className="min-h-screen bg-gradient-to-b from-indigo-950 to-indigo-900 text-white max-w-sm mx-auto flex flex-col p-6">
         {/* Header */}
         <div className="mb-10">
           <button
@@ -34,45 +58,15 @@ export default function DriverScanPage() {
           </button>
           <h1 className="text-2xl font-bold">Escanear QR Code</h1>
           <p className="text-zinc-400 mt-2">
-            Aponte a câmera para o QR Code vinculado ao veículo
+            Aponte a câmera para o QR Code do veículo
           </p>
         </div>
 
         {/* Scanner */}
         <div className="flex-1 flex items-center justify-center">
-          <div className="relative w-72 h-72 rounded-3xl border border-zinc-800 bg-zinc-900 flex items-center justify-center">
-            {/* Corners */}
-            <div className="absolute top-4 left-4 w-10 h-10 border-t-4 border-l-4 border-green-400 rounded-tl-xl" />
-            <div className="absolute top-4 right-4 w-10 h-10 border-t-4 border-r-4 border-green-400 rounded-tr-xl" />
-            <div className="absolute bottom-4 left-4 w-10 h-10 border-b-4 border-l-4 border-green-400 rounded-bl-xl" />
-            <div className="absolute bottom-4 right-4 w-10 h-10 border-b-4 border-r-4 border-green-400 rounded-br-xl" />
-            {/* Fake QR */}
-            <Image
-              src="/QRCode.svg"
-              alt="QR Code"
-              width={250}
-              height={250}
-              className="rounded-3xl"
-            />
+          <div className="w-full rounded-3xl overflow-hidden border border-zinc-800 bg-zinc-900 p-2">
+            <QRScanner onScanSuccess={handleScanSuccess} />
           </div>
-        </div>
-
-        {/* Actions */}
-        <div className="space-y-4 mt-10">
-          <Button
-            onClick={() => {
-              saveStorage("vehicle", {
-                id: 1,
-                model: "Fiat Palio",
-                plate: "ABC-1234",
-              });
-
-              router.push("/driver/start");
-            }}
-            className="w-full h-12 rounded-2xl text-base font-semibold"
-          >
-            Confirmar veículo
-          </Button>
         </div>
       </main>
     </MobileLayout>

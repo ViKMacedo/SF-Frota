@@ -1,5 +1,4 @@
 import Dexie, { Table } from "dexie";
-
 export interface Trip {
   id?: number;
   vehicleId: number;
@@ -16,13 +15,27 @@ export interface Trip {
   synced: boolean;
 }
 
-export class SFDatabase extends Dexie {
+export interface Vehicle {
+  id?: number;
+  model: string;
+  plate: string;
+  type: "Carro" | "Caminhão" | "Caminhonete";
+  status: "Disponível" | "Em uso" | "Em manutenção" | "Inativo";
+  km: number;
+}
+
+class AppDatabase extends Dexie {
   trips!: Table<Trip>;
+
+  vehicles!: Table<Vehicle>;
+
   constructor() {
     super("sf-frota-db");
-    this.version(1).stores({
-      trips: "++id, vehicleId, startedAt, status, synced",
+    this.version(2).stores({
+      vehicles: "++id, plate, status",
+      trips: "++id, vehicleId, status",
     });
   }
 }
-export const db = new SFDatabase();
+
+export const db = new AppDatabase();

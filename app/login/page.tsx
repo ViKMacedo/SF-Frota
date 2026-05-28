@@ -1,9 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
+
+import { seedVehicles } from "@/services/vehicleService";
 import { useRouter } from "next/navigation";
-
 import { MobileLayout } from "@/components/layout/mobile-layout";
-
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,13 +21,14 @@ export default function LoginPage() {
 
     router.push("/driver/scan");
   }
-
+  useEffect(() => {
+    seedVehicles();
+  }, []);
   return (
     <MobileLayout>
       <Card className="p-8 rounded-3xl shadow-2xl border-zinc-800 bg-zinc-900 text-white">
         <div className="mb-8">
           <h1 className="text-4xl font-bold tracking-tight">SF Frota</h1>
-
           <p className="text-zinc-400 mt-2">
             Controle de utilização de veículos
           </p>
