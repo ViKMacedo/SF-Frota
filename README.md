@@ -1,4 +1,3 @@
-````md
 # 🚛 SF Frota
 
 Sistema de gestão de frota desenvolvido com Next.js, TypeScript e TailwindCSS.
@@ -56,7 +55,6 @@ hooks/
 lib/
 public/
 ```
-````
 
 ---
 
@@ -195,7 +193,3 @@ O projeto foi desenvolvido como estudo prático de:
 # 👨‍💻 Autor
 
 Victor Macedo
-
-```
-
-```
