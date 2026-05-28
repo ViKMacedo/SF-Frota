@@ -5,6 +5,7 @@ import { MobileLayout } from "@/components/layout/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { getActiveTrip } from "@/services/tripService";
+import { saveStorage } from "@/lib/storage";
 import Image from "next/image";
 
 export default function DriverScanPage() {
@@ -59,7 +60,15 @@ export default function DriverScanPage() {
         {/* Actions */}
         <div className="space-y-4 mt-10">
           <Button
-            onClick={() => router.push("/driver/start")}
+            onClick={() => {
+              saveStorage("vehicle", {
+                id: 1,
+                model: "Fiat Palio",
+                plate: "ABC-1234",
+              });
+
+              router.push("/driver/start");
+            }}
             className="w-full h-12 rounded-2xl text-base font-semibold"
           >
             Confirmar veículo

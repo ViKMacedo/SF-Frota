@@ -1,20 +1,20 @@
 "use client";
 
+import { useMemo, useState } from "react";
+
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { getStorage } from "@/lib/storage";
-import { createTrip } from "@/services/tripService";
-import { getActiveTrip } from "@/services/tripService";
-
-import { useMemo, useState } from "react";
+import { createTrip, getActiveTrip } from "@/services/tripService";
 
 export default function DriverStartPage() {
   const [error, setError] = useState("");
   const [initialKm, setInitialKm] = useState("");
   const router = useRouter();
+
   const vehicle = getStorage("vehicle");
   const driver = useMemo(() => {
     return getStorage("driver");
@@ -58,11 +58,12 @@ export default function DriverStartPage() {
       setError("Motorista não encontrado");
       return;
     }
+
     setError("");
 
     await createTrip({
       vehicleId: vehicle.id,
-      vehicleModel: vehicle.name,
+      vehicleModel: vehicle.model,
       vehiclePlate: vehicle.plate,
       driverName: driver.name,
       startKm: parsed,
@@ -70,8 +71,10 @@ export default function DriverStartPage() {
       status: "Em andamento",
       synced: false,
     });
+
     router.push("/driver/running");
   }
+
   return (
     <MobileLayout>
       <main className="min-h-screen bg-gradient-to-b from-indigo-950 to-indigo-900 text-white max-w-sm mx-auto flex flex-col p-6">
@@ -89,6 +92,7 @@ export default function DriverStartPage() {
             Informe o KM atual do veículo para iniciar
           </p>
         </div>
+
         {/* Vehicle Card */}
         <Card className="rounded-3xl p-5 border-white-200 shadow-sm mb-8">
           <div className="flex items-center gap-4">
@@ -97,11 +101,12 @@ export default function DriverStartPage() {
             </div>
             <div>
               <p className="text-sm text-zinc-500">Veículo em uso</p>
-              <p>{vehicle?.name}</p>
+              <p>{vehicle?.model}</p>
               <p className="text-sm text-zinc-500">{vehicle?.plate}</p>
             </div>
           </div>
         </Card>
+
         {/* KM Input */}
         <div className="mb-8">
           <label className="text-sm text-zinc-300 mb-2 block">KM inicial</label>
@@ -109,7 +114,6 @@ export default function DriverStartPage() {
             value={initialKm}
             onChange={(e) => {
               const value = e.target.value.replace(/\D/g, "");
-
               if (value.length <= 6) {
                 setInitialKm(value);
               }

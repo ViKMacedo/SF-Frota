@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import { useRouter } from "next/navigation";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,17 +21,18 @@ export default function DriverEndPage() {
       const activeTrip = await getActiveTrip();
       if (!activeTrip) {
         router.push("/driver/start");
-
         return;
       }
       setTrip(activeTrip);
     }
+
     loadTrip();
   }, [router]);
 
   async function handleFinishTrip() {
     if (!trip?.id) return;
     const parsed = Number(endKm);
+
     if (!endKm) {
       setError("Informe o KM final");
       return;
@@ -58,6 +59,7 @@ export default function DriverEndPage() {
     const duration =
       `${String(hours).padStart(2, "0")}h ` +
       `${String(minutes).padStart(2, "0")}min`;
+
     const distance = parsed - trip.startKm;
 
     await finishTrip(trip.id, {
@@ -65,7 +67,10 @@ export default function DriverEndPage() {
       distance,
       endedAt: endedAt.toISOString(),
       duration,
+      status: "Finalizada",
+      synced: false,
     });
+
     router.push("/driver/success");
   }
 
@@ -80,11 +85,12 @@ export default function DriverEndPage() {
           >
             ← Voltar
           </button>
+
           <h1 className="text-3xl font-bold">Encerrar utilização</h1>
           <p className="text-indigo-300 mt-2">Informe o KM final do veículo</p>
         </div>
 
-        {/* Card */}
+        {/* Vehicle Card */}
         <Card className="rounded-3xl p-6 bg-white text-zinc-900 border-none shadow-2xl">
           <div className="space-y-4">
             <div>
@@ -93,20 +99,21 @@ export default function DriverEndPage() {
               <p className="text-sm text-zinc-500">{trip?.vehiclePlate}</p>
             </div>
             <div className="border-t border-zinc-200" />
+
             <div>
               <p className="text-sm text-zinc-500 mb-2">KM inicial</p>
               <h1 className="text-2xl font-bold">{trip?.startKm}</h1>
             </div>
           </div>
         </Card>
-
-        {/* Input */}
+        {/* KM Input */}
         <div className="mt-8">
           <label className="text-sm text-zinc-300 mb-2 block">KM final</label>
           <Input
             value={endKm}
             onChange={(e) => {
               const value = e.target.value.replace(/\D/g, "");
+
               if (value.length <= 6) {
                 setEndKm(value);
               }
@@ -115,6 +122,7 @@ export default function DriverEndPage() {
             type="text"
             inputMode="numeric"
           />
+
           {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
         </div>
 

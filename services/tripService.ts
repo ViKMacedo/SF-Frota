@@ -5,7 +5,7 @@ export async function createTrip(trip: Omit<Trip, "id">) {
 }
 
 export async function getTrips() {
-  return await db.trips.toArray();
+  return await db.trips.reverse().toArray();
 }
 
 export async function getActiveTrip() {
@@ -18,4 +18,15 @@ export async function finishTrip(id: number, data: Partial<Trip>) {
 
     status: "Finalizada",
   });
+}
+export async function getLastFinishedTrip() {
+  const trips = await db.trips.toArray();
+
+  return trips
+    .filter((trip) => trip.status === "Finalizada")
+    .sort(
+      (a, b) =>
+        new Date(b.endedAt || "").getTime() -
+        new Date(a.endedAt || "").getTime(),
+    )[0];
 }
