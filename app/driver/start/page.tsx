@@ -1,19 +1,34 @@
 "use client";
+
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
-import { saveStorage, getStorage } from "@/lib/storage";
+import { getStorage } from "@/lib/storage";
+import { createTrip } from "@/services/tripService";
+import { getActiveTrip } from "@/services/tripService";
+
 import { useMemo, useState } from "react";
 
 export default function DriverStartPage() {
   const [error, setError] = useState("");
-  const router = useRouter();
   const [initialKm, setInitialKm] = useState("");
+  const router = useRouter();
+  const vehicle = getStorage("vehicle");
+  const driver = useMemo(() => {
+    return getStorage("driver");
+  }, []);
 
-  function handleStart() {
+  async function handleStart() {
     const parsed = Number(initialKm);
+    const activeTrip = await getActiveTrip();
+
+    if (activeTrip) {
+      router.push("/driver/running");
+      return;
+    }
+
     if (!initialKm) {
       setError("Informe o KM inicial");
       return;
@@ -33,17 +48,30 @@ export default function DriverStartPage() {
       setError("KM deve ser maior que zero");
       return;
     }
+
+    if (!vehicle) {
+      setError("Veículo não encontrado");
+      return;
+    }
+
+    if (!driver) {
+      setError("Motorista não encontrado");
+      return;
+    }
     setError("");
-    saveStorage("trip", {
-      initialKm: parsed,
+
+    await createTrip({
+      vehicleId: vehicle.id,
+      vehicleModel: vehicle.name,
+      vehiclePlate: vehicle.plate,
+      driverName: driver.name,
+      startKm: parsed,
       startedAt: new Date().toISOString(),
+      status: "Em andamento",
+      synced: false,
     });
     router.push("/driver/running");
   }
-  const vehicle = getStorage("vehicle");
-  const driver = useMemo(() => {
-    return getStorage("driver");
-  }, []);
   return (
     <MobileLayout>
       <main className="min-h-screen bg-gradient-to-b from-indigo-950 to-indigo-900 text-white max-w-sm mx-auto flex flex-col p-6">
@@ -55,9 +83,9 @@ export default function DriverStartPage() {
           >
             ← Voltar
           </button>
-          <h1 className="text-3xl font-bold text-white-900">Iniciar uso</h1>
+          <h1 className="text-3xl font-bold text-white">Iniciar uso</h1>
           <p>Motorista: {driver?.name}</p>
-          <p className="text-white-500 mt-2">
+          <p className="text-zinc-300 mt-2">
             Informe o KM atual do veículo para iniciar
           </p>
         </div>
@@ -69,20 +97,19 @@ export default function DriverStartPage() {
             </div>
             <div>
               <p className="text-sm text-zinc-500">Veículo em uso</p>
-              <p>Carro: {vehicle?.name}</p>
-              <p className="text-sm text-zinc-500">ABC-1234</p>
+              <p>{vehicle?.name}</p>
+              <p className="text-sm text-zinc-500">{vehicle?.plate}</p>
             </div>
           </div>
         </Card>
         {/* KM Input */}
         <div className="mb-8">
-          <label className="text-sm text-white-500 mb-2 block">
-            KM inicial
-          </label>
+          <label className="text-sm text-zinc-300 mb-2 block">KM inicial</label>
           <Input
             value={initialKm}
             onChange={(e) => {
               const value = e.target.value.replace(/\D/g, "");
+
               if (value.length <= 6) {
                 setInitialKm(value);
               }

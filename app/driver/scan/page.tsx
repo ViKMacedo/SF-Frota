@@ -1,11 +1,25 @@
 "use client";
+import { useEffect } from "react";
+
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { getActiveTrip } from "@/services/tripService";
 import Image from "next/image";
 
 export default function DriverScanPage() {
   const router = useRouter();
+  useEffect(() => {
+    async function checkActiveTrip() {
+      const activeTrip = await getActiveTrip();
+
+      if (activeTrip) {
+        router.push("/driver/running");
+      }
+    }
+
+    checkActiveTrip();
+  }, [router]);
   return (
     <MobileLayout>
       <main className="min-h-screen bg-gradient-to-b from-indigo-950 to-indigo-900 text-white text-white max-w-sm mx-auto flex flex-col p-6">
