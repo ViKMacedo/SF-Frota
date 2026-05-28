@@ -39,3 +39,8 @@ class AppDatabase extends Dexie {
 }
 
 export const db = new AppDatabase();
+export type VehicleStatus =
+  | "Disponível"
+  | "Em uso"
+  | "Em manutenção"
+  | "Inativo";

@@ -1,4 +1,4 @@
-import { db, type Vehicle } from "@/lib/db";
+import { db, type Vehicle, VehicleStatus } from "@/lib/db";
 
 export async function getVehicles(): Promise<Vehicle[]> {
   return await db.vehicles.toArray();
@@ -19,13 +19,15 @@ export async function seedVehicles() {
       plate: "ABC-1234",
       type: "Carro",
       status: "Disponível",
+      km: 123456,
     },
 
     {
-      model: "CG 160",
+      model: "F1000",
       plate: "DEF-5678",
-      type: "Moto",
+      type: "Caminhonete",
       status: "Disponível",
+      km: 123456,
     },
   ]);
 }
@@ -34,7 +36,7 @@ export async function getVehicleByPlate(
 ): Promise<Vehicle | undefined> {
   return await db.vehicles.where("plate").equals(plate).first();
 }
-export async function updateVehicleStatus(id: number, status: string) {
+export async function updateVehicleStatus(id: number, status: VehicleStatus) {
   await db.vehicles.update(id, {
     status,
   });
