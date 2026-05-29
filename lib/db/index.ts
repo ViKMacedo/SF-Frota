@@ -14,6 +14,10 @@ export interface Trip {
   duration?: string;
   status: "Em andamento" | "Finalizada";
   synced: boolean;
+  lat?: number;
+  lng?: number;
+  speed?: number;
+  statusLabel?: string;
 }
 
 export interface Vehicle {
