@@ -4,6 +4,7 @@ export interface Trip {
   vehicleId: number;
   vehicleModel: string;
   vehiclePlate: string;
+  driverId: number;
   driverName: string;
   startKm: number;
   endKm?: number;

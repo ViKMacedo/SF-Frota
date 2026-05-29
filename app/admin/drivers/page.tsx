@@ -44,7 +44,7 @@ export default function DriversPage() {
     setDrivers(data);
   }
   async function handleCreateDriver() {
-    if (!name || !registration || !license) {
+    if (!name || registration.length !== 4 || !license) {
       return;
     }
     const driverData = {
@@ -96,7 +96,7 @@ export default function DriversPage() {
 
       {/* Table */}
       <div className="overflow-x-auto no-scrollbar">
-        <Table headers={["Nome", "Registro", "CNH", "Status", "Ações"]}>
+        <Table headers={["Nome", "PIN", "CNH", "Status", "Ações"]}>
           {drivers.map((driver) => (
             <TableRow key={driver.id}>
               <TableCell className="font-medium">{driver.name}</TableCell>
@@ -153,11 +153,17 @@ export default function DriversPage() {
             />
           </div>
           <div className="space-y-2">
-            <FormLabel>Registro</FormLabel>
+            <FormLabel>PIN</FormLabel>
             <FormInput
-              placeholder="12345"
+              type="text"
+              inputMode="numeric"
+              placeholder="1234"
               value={registration}
-              onChange={(e) => setRegistration(e.target.value)}
+              maxLength={4}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "");
+                setRegistration(value);
+              }}
             />
           </div>
           <div className="space-y-2">

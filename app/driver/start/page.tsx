@@ -63,10 +63,11 @@ export default function DriverStartPage() {
     setError("");
 
     await createTrip({
+      driverId: driver.id,
+      driverName: driver.name,
       vehicleId: vehicle.id,
       vehicleModel: vehicle.model,
       vehiclePlate: vehicle.plate,
-      driverName: driver.name,
       startKm: parsed,
       startedAt: new Date().toISOString(),
       status: "Em andamento",

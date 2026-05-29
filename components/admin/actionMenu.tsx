@@ -60,12 +60,15 @@ export function ActionMenu({
           >
             Excluir
           </button>
-          <button
-            onClick={onQr}
-            className="w-full text-left px-4 py-2 hover:bg-zinc-800 transition"
-          >
-            QR Code
-          </button>
+          {onQr && (
+            <button
+              onClick={onQr}
+              className="w-full text-left px-4 py-2 hover:bg-zinc-800"
+            >
+              {" "}
+              QR Code{" "}
+            </button>
+          )}
         </div>
       )}
     </div>
