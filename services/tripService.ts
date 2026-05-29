@@ -1,7 +1,12 @@
 import { db, Trip } from "@/lib/db";
 
 export async function createTrip(trip: Omit<Trip, "id">) {
-  return await db.trips.add(trip);
+  const id = await db.trips.add(trip);
+
+  await db.vehicles.update(trip.vehicleId, {
+    status: "Em uso",
+  });
+  return id;
 }
 
 export async function getTrips() {
@@ -13,15 +18,24 @@ export async function getActiveTrip() {
 }
 
 export async function finishTrip(id: number, data: Partial<Trip>) {
-  return await db.trips.update(id, {
-    ...data,
+  const trip = await db.trips.get(id);
+  if (!trip) {
+    return;
+  }
 
+  await db.trips.update(id, {
+    ...data,
     status: "Finalizada",
   });
+
+  await db.vehicles.update(trip.vehicleId, {
+    status: "Disponível",
+    km: data.endKm,
+  });
 }
+
 export async function getLastFinishedTrip() {
   const trips = await db.trips.toArray();
-
   return trips
     .filter((trip) => trip.status === "Finalizada")
     .sort(

@@ -36,6 +36,10 @@ export default function DriverScanPage() {
           alert("Veículo não encontrado");
           return;
         }
+        if (vehicle.status !== "Disponível") {
+          alert("Veículo indisponível");
+          return;
+        }
         saveStorage("vehicle", vehicle);
         router.push("/driver/start");
       } catch {
