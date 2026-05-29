@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 
 import { Header } from "@/components/admin/header";
 import { KpiCard } from "@/components/admin/kpicard";
@@ -9,11 +10,20 @@ import { getActiveTrips } from "@/services/trackingService";
 import { Table } from "@/components/admin/table";
 import { TableRow } from "@/components/admin/tablerow";
 import { TableCell } from "@/components/admin/tablecell";
-import { TrackingMap } from "@/components/admin/trackingmap";
-import type { TrackingTrip } from "@/types/tracking";
 
+import type { TrackingTrip } from "@/types/tracking";
+import { TrackingDrawer } from "@/components/admin/trackingdrawer";
+
+const TrackingMap = dynamic(
+  () => import("@/components/admin/trackingmap").then((mod) => mod.TrackingMap),
+  {
+    ssr: false,
+  },
+);
 export default function TrackingPage() {
   const [trips, setTrips] = useState<TrackingTrip[]>([]);
+
+  const [selectedTrip, setSelectedTrip] = useState<TrackingTrip | null>(null);
   useEffect(() => {
     async function loadTracking() {
       const data = await getActiveTrips();
@@ -60,7 +70,7 @@ export default function TrackingPage() {
       </div>
       {/* Map */}
       <div className="overflow-hidden rounded-3xl border border-zinc-800 mb-8">
-        <TrackingMap trips={trips} />
+        <TrackingMap trips={trips} onSelectTrip={setSelectedTrip} />
       </div>
       {/* Live KPI */}
       <div className="overflow-hidden rounded-3xl border border-zinc-800 mb-8">
@@ -70,15 +80,20 @@ export default function TrackingPage() {
           {trips.map((trip) => (
             <TableRow key={trip.id}>
               <TableCell className="font-medium">{trip.driverName}</TableCell>
+
               <TableCell>{trip.vehicleModel}</TableCell>
+
               <TableCell>
                 {new Date(trip.startedAt).toLocaleTimeString("pt-BR", {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
               </TableCell>
+
               <TableCell>{formatDuration(trip.startedAt)}</TableCell>
+
               <TableCell>{trip.distance || 0} km</TableCell>
+
               <TableCell>
                 <div className="flex items-center gap-2 text-green-400 font-medium">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -89,6 +104,8 @@ export default function TrackingPage() {
           ))}
         </Table>
       </div>
+
+      {selectedTrip && <TrackingDrawer trip={selectedTrip} />}
     </div>
   );
 }

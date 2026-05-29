@@ -1,6 +1,7 @@
 "use client";
 
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import MarkerClusterGroup from "react-leaflet-cluster";
 import { LatLngExpression, divIcon } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect } from "react";
@@ -8,6 +9,7 @@ import type { TrackingTrip } from "@/types/tracking";
 
 type Props = {
   trips: TrackingTrip[];
+  onSelectTrip: (trip: TrackingTrip) => void;
 };
 const center: LatLngExpression = [-24.021347, -48.362951];
 
@@ -29,7 +31,6 @@ function createVehicleIcon(
         box-shadow:0 10px 30px rgba(0,0,0,0.45);
         backdrop-filter: blur(10px);
       ">
-
         <div style="
           display:flex;
           align-items:center;
@@ -43,7 +44,6 @@ function createVehicleIcon(
             border-radius:999px;
             animation:pulse 1.5s infinite;
           "></div>
-
           <span style="
             font-size:12px;
             color:#22c55e;
@@ -53,7 +53,6 @@ function createVehicleIcon(
             ${status.toUpperCase()}
           </span>
         </div>
-
         <div style="
           display:flex;
           align-items:center;
@@ -65,7 +64,6 @@ function createVehicleIcon(
           ">
             🚗
           </div>
-
           <div>
             <div style="
               font-size:15px;
@@ -74,7 +72,6 @@ function createVehicleIcon(
             ">
               ${vehicle}
             </div>
-
             <div style="
               font-size:12px;
               color:#a1a1aa;
@@ -84,7 +81,6 @@ function createVehicleIcon(
             </div>
           </div>
         </div>
-
         <div style="
           font-size:13px;
           color:#d4d4d8;
@@ -98,12 +94,14 @@ function createVehicleIcon(
     iconSize: [180, 120],
   });
 }
-function FitBounds({ trips }: Props) {
+function FitBounds({ trips }: { trips: TrackingTrip[] }) {
   const map = useMap();
+
   useEffect(() => {
     if (trips.length === 0) {
       return;
     }
+
     const bounds = trips
       .filter(
         (trip): trip is TrackingTrip =>
@@ -117,9 +115,10 @@ function FitBounds({ trips }: Props) {
       });
     }
   }, [trips, map]);
+
   return null;
 }
-export function TrackingMap({ trips }: Props) {
+export function TrackingMap({ trips, onSelectTrip }: Props) {
   return (
     <div className="overflow-hidden rounded-3xl border border-zinc-800">
       <MapContainer
@@ -136,51 +135,56 @@ export function TrackingMap({ trips }: Props) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <FitBounds trips={trips} />
-        {trips
-          .filter(
-            (trip): trip is TrackingTrip =>
-              trip.lat !== undefined && trip.lng !== undefined,
-          )
-          .map((trip) => (
-            <Marker
-              key={trip.id}
-              position={[trip.lat, trip.lng]}
-              icon={createVehicleIcon(
-                trip.driverName,
-                trip.vehicleModel,
-                trip.statusLabel,
-                trip.speed,
-              )}
-            >
-              <Popup>
-                <div className="space-y-2 min-w-[180px]">
-                  <h2 className="font-bold text-base">{trip.vehicleModel}</h2>
-                  <div className="space-y-1 text-sm">
-                    <p>
-                      <span className="font-semibold">Motorista:</span>{" "}
-                      {trip.driverName}
-                    </p>
-                    <p>
-                      <span className="font-semibold">Status:</span>{" "}
-                      {trip.statusLabel}
-                    </p>
-                    <p>
-                      <span className="font-semibold">Velocidade:</span>{" "}
-                      {trip.speed} km/h
-                    </p>
-                    <p>
-                      <span className="font-semibold">KM:</span>{" "}
-                      {trip.distance || 0} km
-                    </p>
+        <MarkerClusterGroup chunkedLoading>
+          {trips
+            .filter(
+              (trip): trip is TrackingTrip =>
+                trip.lat !== undefined && trip.lng !== undefined,
+            )
+            .map((trip) => (
+              <Marker
+                key={trip.id}
+                position={[trip.lat, trip.lng]}
+                icon={createVehicleIcon(
+                  trip.driverName,
+                  trip.vehicleModel,
+                  trip.statusLabel,
+                  trip.speed,
+                )}
+                eventHandlers={{
+                  click: () => onSelectTrip(trip),
+                }}
+              >
+                <Popup>
+                  <div className="space-y-2 min-w-[180px]">
+                    <h2 className="font-bold text-base">{trip.vehicleModel}</h2>
+                    <div className="space-y-1 text-sm">
+                      <p>
+                        <span className="font-semibold">Motorista:</span>{" "}
+                        {trip.driverName}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Status:</span>{" "}
+                        {trip.statusLabel}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Velocidade:</span>{" "}
+                        {trip.speed} km/h
+                      </p>
+                      <p>
+                        <span className="font-semibold">KM:</span>{" "}
+                        {trip.distance || 0} km
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      LIVE
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    LIVE
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+                </Popup>
+              </Marker>
+            ))}
+        </MarkerClusterGroup>
       </MapContainer>
     </div>
   );
