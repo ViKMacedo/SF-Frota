@@ -88,7 +88,7 @@ export default function VehiclesPage() {
     setEditingId(vehicle.id ?? null);
     setModel(vehicle.model);
     setPlate(vehicle.plate);
-    setKm(vehicle.km.toString());
+    setKm(vehicle.km?.toString() || "");
     setType(vehicle.type);
     setStatus(vehicle.status);
     setOpen(true);

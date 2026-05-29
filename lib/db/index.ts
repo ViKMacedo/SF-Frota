@@ -26,14 +26,15 @@ export interface Vehicle {
 
 class AppDatabase extends Dexie {
   trips!: Table<Trip>;
-
+  drivers!: Table<Driver>;
   vehicles!: Table<Vehicle>;
 
   constructor() {
     super("sf-frota-db");
-    this.version(2).stores({
+    this.version(3).stores({
       vehicles: "++id, plate, status",
       trips: "++id, vehicleId, status",
+      drivers: "++id, name, registration",
     });
   }
 }
@@ -44,3 +45,11 @@ export type VehicleStatus =
   | "Em uso"
   | "Em manutenção"
   | "Inativo";
+
+export interface Driver {
+  id?: number;
+  name: string;
+  registration: string;
+  license: "A" | "B" | "C" | "D" | "E" | "AB";
+  status: "Ativo" | "Afastado" | "Férias";
+}
