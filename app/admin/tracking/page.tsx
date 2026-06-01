@@ -70,7 +70,11 @@ export default function TrackingPage() {
       </div>
       {/* Map */}
       <div className="overflow-hidden rounded-3xl border border-zinc-800 mb-8">
-        <TrackingMap trips={trips} onSelectTrip={setSelectedTrip} />
+        <TrackingMap
+          trips={trips}
+          selectedTrip={selectedTrip}
+          onSelectTrip={setSelectedTrip}
+        />
       </div>
       {/* Live KPI */}
       <div className="overflow-hidden rounded-3xl border border-zinc-800 mb-8">
@@ -78,7 +82,11 @@ export default function TrackingPage() {
           headers={["Motorista", "Veículo", "Início", "Tempo", "KM", "Status"]}
         >
           {trips.map((trip) => (
-            <TableRow key={trip.id}>
+            <TableRow
+              key={trip.id}
+              onClick={() => setSelectedTrip(trip)}
+              className="cursor-pointer hover:bg-zinc-800/50 transition"
+            >
               <TableCell className="font-medium">{trip.driverName}</TableCell>
 
               <TableCell>{trip.vehicleModel}</TableCell>
@@ -96,7 +104,7 @@ export default function TrackingPage() {
 
               <TableCell>
                 <div className="flex items-center gap-2 text-green-400 font-medium">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <div className="w-2 h-2 bg-green-500 rounded-full   animate-pulse" />
                   LIVE
                 </div>
               </TableCell>

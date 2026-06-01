@@ -9,6 +9,7 @@ import type { TrackingTrip } from "@/types/tracking";
 
 type Props = {
   trips: TrackingTrip[];
+  selectedTrip: TrackingTrip | null;
   onSelectTrip: (trip: TrackingTrip) => void;
 };
 const center: LatLngExpression = [-24.021347, -48.362951];
@@ -118,7 +119,20 @@ function FitBounds({ trips }: { trips: TrackingTrip[] }) {
 
   return null;
 }
-export function TrackingMap({ trips, onSelectTrip }: Props) {
+function FocusVehicle({ trip }: { trip: TrackingTrip | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!trip) return;
+
+    map.flyTo([trip.lat, trip.lng], 16, {
+      duration: 1.5,
+    });
+  }, [trip, map]);
+
+  return null;
+}
+export function TrackingMap({ trips, selectedTrip, onSelectTrip }: Props) {
   return (
     <div className="overflow-hidden rounded-3xl border border-zinc-800">
       <MapContainer
@@ -135,6 +149,7 @@ export function TrackingMap({ trips, onSelectTrip }: Props) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <FitBounds trips={trips} />
+        <FocusVehicle trip={selectedTrip} />
         <MarkerClusterGroup chunkedLoading>
           {trips
             .filter(
