@@ -196,7 +196,7 @@ export default function VehiclesPage() {
         </div>
       </Modal>
 
-      {/* Create/Edit Modal */}
+      {/* Modal */}
       <Modal
         open={open}
         onClose={resetForm}

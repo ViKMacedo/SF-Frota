@@ -50,3 +50,39 @@ export async function updateVehicle(id: number, vehicle: Partial<Vehicle>) {
 export async function deleteVehicle(id: number) {
   return await db.vehicles.delete(id);
 }
+export type VehicleWithUsage = Vehicle & {
+  lastDriver: string;
+  lastUsedAt?: string;
+  totalTrips: number;
+  totalKmDriven: number;
+};
+
+export async function getVehiclesWithUsage(): Promise<VehicleWithUsage[]> {
+  const vehicles = await db.vehicles.toArray();
+  const trips = await db.trips.toArray();
+
+  return vehicles.map((vehicle) => {
+    const vehicleTrips = trips.filter((trip) => trip.vehicleId === vehicle.id);
+
+    const lastTrip = vehicleTrips
+      .filter((trip) => trip.status === "Finalizada")
+      .sort(
+        (a, b) =>
+          new Date(b.endedAt || "").getTime() -
+          new Date(a.endedAt || "").getTime(),
+      )[0];
+
+    const totalKmDriven = vehicleTrips.reduce(
+      (acc, trip) => acc + (trip.distance || 0),
+      0,
+    );
+
+    return {
+      ...vehicle,
+      lastDriver: lastTrip?.driverName || "-",
+      lastUsedAt: lastTrip?.endedAt,
+      totalTrips: vehicleTrips.length,
+      totalKmDriven,
+    };
+  });
+}
