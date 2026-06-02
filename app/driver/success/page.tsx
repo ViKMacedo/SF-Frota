@@ -52,9 +52,21 @@ export default function DriverSuccessPage() {
           <span className="text-zinc-400">KM rodado</span>
           <span className="font-semibold">{totalKm} km</span>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <span className="text-zinc-400">Tempo</span>
           <span className="font-semibold">{formattedTime}</span>
+        </div>
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-zinc-400">Motorista</span>
+          <span className="font-semibold">{trip.driverName}</span>
+        </div>
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-zinc-400">KM inicial</span>
+          <span className="font-semibold">{trip.startKm}</span>
+        </div>
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-zinc-400">KM final</span>
+          <span className="font-semibold">{trip.endKm}</span>
         </div>
       </div>
 
