@@ -27,6 +27,9 @@ export interface Vehicle {
   type: "Carro" | "Caminhão" | "Caminhonete";
   status: "Disponível" | "Em uso" | "Em manutenção" | "Inativo";
   km: number;
+
+  lastDriver?: string;
+  lastUsedAt?: string;
 }
 
 class AppDatabase extends Dexie {

@@ -63,7 +63,7 @@ export function ActionMenu({
           {onQr && (
             <button
               onClick={onQr}
-              className="w-full text-left px-4 py-2 hover:bg-zinc-800"
+              className="w-full text-left px-4 py-3 hover:bg-zinc-800 transition"
             >
               {" "}
               QR Code{" "}

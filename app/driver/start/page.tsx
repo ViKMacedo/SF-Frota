@@ -5,48 +5,29 @@ import { useMemo, useState } from "react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
+
 import { getStorage } from "@/lib/storage";
+
 import { createTrip, getActiveTrip } from "@/services/tripService";
 import { updateVehicleStatus } from "@/services/vehicleService";
 
 export default function DriverStartPage() {
-  const [error, setError] = useState("");
-  const [initialKm, setInitialKm] = useState("");
+  const [, setError] = useState("");
+
   const router = useRouter();
 
   const vehicle = getStorage("vehicle");
+
   const driver = useMemo(() => {
     return getStorage("driver");
   }, []);
 
   async function handleStart() {
-    const parsed = Number(initialKm);
     const activeTrip = await getActiveTrip();
 
     if (activeTrip) {
       router.push("/driver/running");
-      return;
-    }
-
-    if (!initialKm) {
-      setError("Informe o KM inicial");
-      return;
-    }
-
-    if (isNaN(parsed)) {
-      setError("Informe apenas números");
-      return;
-    }
-
-    if (initialKm.length < 5) {
-      setError("KM deve ter no mínimo 5 dígitos");
-      return;
-    }
-
-    if (parsed <= 0) {
-      setError("KM deve ser maior que zero");
       return;
     }
 
@@ -61,19 +42,17 @@ export default function DriverStartPage() {
     }
 
     setError("");
-
     await createTrip({
       vehicleId: vehicle.id,
       vehicleModel: vehicle.model,
       vehiclePlate: vehicle.plate,
+      driverId: 0,
       driverName: driver.name,
-      startKm: parsed,
       startedAt: new Date().toISOString(),
       status: "Em andamento",
       synced: false,
       lat: -24.021347,
       lng: -48.362951,
-      driverId: 0,
     });
 
     await updateVehicleStatus(vehicle.id, "Em uso");
@@ -92,44 +71,53 @@ export default function DriverStartPage() {
           >
             ← Voltar
           </button>
+
           <h1 className="text-3xl font-bold text-white">Iniciar uso</h1>
+
           <p>Motorista: {driver?.name}</p>
+
           <p className="text-zinc-300 mt-2">
-            Informe o KM atual do veículo para iniciar
+            Confirme o veículo para iniciar a utilização
           </p>
         </div>
 
         {/* Vehicle Card */}
-        <Card className="rounded-3xl p-5 border-white-200 shadow-sm mb-8">
+        <Card className="rounded-3xl p-5 border-white-200 shadow-sm mb-6">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center text-2xl">
               🚗
             </div>
+
             <div>
               <p className="text-sm text-zinc-500">Veículo em uso</p>
+
               <p>{vehicle?.model}</p>
+
               <p className="text-sm text-zinc-500">{vehicle?.plate}</p>
             </div>
           </div>
         </Card>
 
-        {/* KM Input */}
-        <div className="mb-8">
-          <label className="text-sm text-zinc-300 mb-2 block">KM inicial</label>
-          <Input
-            value={initialKm}
-            onChange={(e) => {
-              const value = e.target.value.replace(/\D/g, "");
-              if (value.length <= 6) {
-                setInitialKm(value);
-              }
-            }}
-            placeholder="123456"
-            type="text"
-            inputMode="numeric"
-          />
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-        </div>
+        {/* KM Atual */}
+        <Card className="rounded-3xl p-5 border-white-200 shadow-sm mb-8">
+          <p className="text-sm text-zinc-500 mb-2">Odômetro atual</p>
+          <p className="text-4xl font-bold">
+            {vehicle?.km?.toLocaleString("pt-BR")}
+          </p>
+          <p className="text-sm text-zinc-500 mt-2">KM inicial da viagem</p>
+          <div className="mt-4 flex items-center gap-2 text-green-500">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            Será registrado automaticamente
+          </div>
+          <p>Último motorista: {vehicle?.lastDriver ?? "—"}</p>
+          <p>
+            Última utilização:
+            {vehicle?.lastUsedAt
+              ? new Date(vehicle.lastUsedAt).toLocaleString("pt-BR")
+              : " — "}
+          </p>
+        </Card>
+
         {/* Bottom Button */}
         <div className="mt-auto">
           <Button
