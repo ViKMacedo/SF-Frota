@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { seedVehicles } from "@/services/vehicleService";
 import { getDrivers } from "@/services/driverService";
-import { seedUsers } from "@/services/seedUsers";
+import { ensureAdmin } from "@/services/setupService";
 
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { Button } from "@/components/ui/button";
@@ -17,18 +16,16 @@ import type { Driver } from "@/lib/db";
 
 export default function LoginPage() {
   const router = useRouter();
-  useEffect(() => {
-    seedVehicles();
-    seedUsers();
-  }, []);
 
   const [name, setName] = useState("");
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [pin, setPin] = useState("");
 
   useEffect(() => {
-    seedVehicles();
+    ensureAdmin();
+  }, []);
 
+  useEffect(() => {
     async function loadDrivers() {
       const data = await getDrivers();
       setDrivers(data);

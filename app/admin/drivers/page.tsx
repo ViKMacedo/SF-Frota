@@ -46,7 +46,7 @@ export default function DriversPage() {
     setDrivers(data);
   }
   async function handleCreateDriver() {
-    if (!name || registration.length !== 4 || !license) {
+    if (!name || !registration || !pin || !license) {
       return;
     }
     const driverData = {

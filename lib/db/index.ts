@@ -36,13 +36,15 @@ class AppDatabase extends Dexie {
   trips!: Table<Trip>;
   drivers!: Table<Driver>;
   vehicles!: Table<Vehicle>;
+  settings!: Table<Settings>;
 
   constructor() {
     super("sf-frota-db");
-    this.version(3).stores({
+    this.version(4).stores({
       vehicles: "++id, plate, status",
       trips: "++id, vehicleId, status",
       drivers: "++id, name, registration",
+      settings: "id",
     });
   }
 }
@@ -62,4 +64,15 @@ export interface Driver {
   role: "admin" | "driver";
   license: "A" | "B" | "C" | "D" | "E" | "AB";
   status: "Ativo" | "Afastado" | "Férias";
+}
+export interface Settings {
+  id: number;
+  companyName: string;
+  companyDocument: string;
+  companyPhone: string;
+  companyEmail: string;
+  sessionTimeout: string;
+  allowDeleteDrivers: boolean;
+  allowDeleteVehicles: boolean;
+  allowDeleteTrips: boolean;
 }

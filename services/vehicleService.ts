@@ -8,29 +8,6 @@ export async function getVehicleById(id: number): Promise<Vehicle | undefined> {
   return await db.vehicles.get(id);
 }
 
-export async function seedVehicles() {
-  const count = await db.vehicles.count();
-
-  if (count > 0) return;
-
-  await db.vehicles.bulkAdd([
-    {
-      model: "Fiat Palio",
-      plate: "ABC-1234",
-      type: "Carro",
-      status: "Disponível",
-      km: 123456,
-    },
-
-    {
-      model: "F1000",
-      plate: "DEF-5678",
-      type: "Caminhonete",
-      status: "Disponível",
-      km: 123456,
-    },
-  ]);
-}
 export async function getVehicleByPlate(
   plate: string,
 ): Promise<Vehicle | undefined> {
