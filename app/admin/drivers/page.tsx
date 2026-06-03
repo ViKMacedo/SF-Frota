@@ -24,6 +24,8 @@ import {
 
 export default function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [pin, setPin] = useState("");
+  const [role, setRole] = useState<"admin" | "driver">("driver");
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
@@ -50,6 +52,8 @@ export default function DriversPage() {
     const driverData = {
       name,
       registration,
+      pin,
+      role,
       license,
       status,
     };
@@ -65,6 +69,8 @@ export default function DriversPage() {
   function resetForm() {
     setName("");
     setRegistration("");
+    setPin("");
+    setRole("driver");
     setLicense("B");
     setStatus("Ativo");
     setEditingId(null);
@@ -75,6 +81,8 @@ export default function DriversPage() {
     setEditingId(driver.id ?? null);
     setName(driver.name);
     setRegistration(driver.registration);
+    setPin(driver.pin);
+    setRole(driver.role ?? "driver");
     setLicense(driver.license);
     setStatus(driver.status);
     setOpen(true);
@@ -96,11 +104,16 @@ export default function DriversPage() {
 
       {/* Table */}
       <div className="overflow-x-auto no-scrollbar">
-        <Table headers={["Nome", "PIN", "CNH", "Status", "Ações"]}>
+        <Table
+          headers={["Nome", "Matrícula", "Perfil", "CNH", "Status", "Ações"]}
+        >
           {drivers.map((driver) => (
             <TableRow key={driver.id}>
               <TableCell className="font-medium">{driver.name}</TableCell>
               <TableCell>{driver.registration}</TableCell>
+              <TableCell>
+                {driver.role === "admin" ? "Administrador" : "Motorista"}
+              </TableCell>
               <TableCell>{driver.license}</TableCell>
               <TableCell>
                 <StatusBadge
@@ -147,24 +160,38 @@ export default function DriversPage() {
           <div className="space-y-2">
             <FormLabel>Nome</FormLabel>
             <FormInput
-              placeholder="João Silva"
+              placeholder="José Silva"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
           <div className="space-y-2">
+            <FormLabel>Usuário</FormLabel>
+            <FormInput
+              placeholder="Zé"
+              value={registration}
+              onChange={(e) => setRegistration(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
             <FormLabel>PIN</FormLabel>
             <FormInput
-              type="text"
-              inputMode="numeric"
+              type="password"
               placeholder="1234"
-              value={registration}
+              value={pin}
               maxLength={4}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, "");
-                setRegistration(value);
-              }}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
             />
+          </div>
+          <div className="space-y-2">
+            <FormLabel>Perfil</FormLabel>
+            <FormSelect
+              value={role}
+              onChange={(e) => setRole(e.target.value as "admin" | "driver")}
+            >
+              <option value="driver">Motorista</option>
+              <option value="admin">Administrador</option>
+            </FormSelect>
           </div>
           <div className="space-y-2">
             <FormLabel>CNH</FormLabel>

@@ -2,12 +2,22 @@
 
 import { Sidebar } from "@/components/admin/sidebar";
 import Image from "next/image";
+import { getStorage, removeStorage } from "@/lib/storage";
+import { useRouter } from "next/navigation";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  useAuthGuard("admin");
+  const router = useRouter();
+  const user = getStorage("user");
+  function handleLogout() {
+    removeStorage("user");
+    router.push("/login");
+  }
   return (
     <div className="flex h-screen bg-black text-white">
       {/* Sidebar */}
@@ -41,8 +51,16 @@ export default function AdminLayout({
                 />
               </div>
               <div>
-                <p className="font-medium">Admin</p>
-                <p className="text-zinc-500 text-sm">Operação ativa</p>
+                <p className="font-medium">{user?.name ?? "Administrador"}</p>
+                <p className="text-zinc-500 text-sm">
+                  {user?.role === "admin" ? "Administrador" : "Motorista"}
+                </p>
+                <button
+                  onClick={handleLogout}
+                  className="mt-4 w-full rounded-xl bg-zinc-800 py-2 text-smhover:bg-zinc-700 transition"
+                >
+                  Sair
+                </button>
               </div>
             </div>
           </div>

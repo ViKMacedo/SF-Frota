@@ -57,7 +57,9 @@ export type VehicleStatus =
 export interface Driver {
   id?: number;
   name: string;
-  registration: string;
+  registration: string; // login
+  pin: string;
+  role: "admin" | "driver";
   license: "A" | "B" | "C" | "D" | "E" | "AB";
   status: "Ativo" | "Afastado" | "Férias";
 }

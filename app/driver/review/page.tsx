@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 import { useRouter } from "next/navigation";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 export default function DriverReviewPage() {
+  useAuthGuard("driver");
   const router = useRouter();
   const trip = getStorage("trip");
   const totalKm = (trip?.finalKm || 0) - (trip?.initialKm || 0);

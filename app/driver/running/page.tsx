@@ -8,8 +8,10 @@ import { Card } from "@/components/ui/card";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { getActiveTrip } from "@/services/tripService";
 import type { Trip } from "@/lib/db";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 export default function DriverRunningPage() {
+  useAuthGuard("driver");
   const router = useRouter();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [time, setTime] = useState("00:00");

@@ -8,8 +8,10 @@ import { QRScanner } from "@/components/driver/qrscanner";
 import { saveStorage } from "@/lib/storage";
 import { getVehicleById } from "@/services/vehicleService";
 import { getActiveTrip } from "@/services/tripService";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 export default function DriverScanPage() {
+  useAuthGuard("driver");
   const router = useRouter();
 
   useEffect(() => {

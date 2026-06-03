@@ -14,18 +14,14 @@ import { updateVehicleStatus } from "@/services/vehicleService";
 
 export default function DriverStartPage() {
   const [, setError] = useState("");
-
   const router = useRouter();
-
   const vehicle = getStorage("vehicle");
-
   const driver = useMemo(() => {
     return getStorage("driver");
   }, []);
 
   async function handleStart() {
     const activeTrip = await getActiveTrip();
-
     if (activeTrip) {
       router.push("/driver/running");
       return;
@@ -56,7 +52,6 @@ export default function DriverStartPage() {
     });
 
     await updateVehicleStatus(vehicle.id, "Em uso");
-
     router.push("/driver/running");
   }
 
@@ -71,11 +66,8 @@ export default function DriverStartPage() {
           >
             ← Voltar
           </button>
-
           <h1 className="text-3xl font-bold text-white">Iniciar uso</h1>
-
           <p>Motorista: {driver?.name}</p>
-
           <p className="text-zinc-300 mt-2">
             Confirme o veículo para iniciar a utilização
           </p>
@@ -87,12 +79,9 @@ export default function DriverStartPage() {
             <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center text-2xl">
               🚗
             </div>
-
             <div>
               <p className="text-sm text-zinc-500">Veículo em uso</p>
-
               <p>{vehicle?.model}</p>
-
               <p className="text-sm text-zinc-500">{vehicle?.plate}</p>
             </div>
           </div>
