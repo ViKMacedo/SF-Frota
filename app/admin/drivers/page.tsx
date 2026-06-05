@@ -124,6 +124,7 @@ export default function DriversPage() {
                         ? "maintenance"
                         : "inactive"
                   }
+                  label={driver.status}
                 />
               </TableCell>
               <TableCell>

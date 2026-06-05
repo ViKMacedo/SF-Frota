@@ -1,8 +1,9 @@
 interface StatusBadgeProps {
   status: "active" | "available" | "inactive" | "maintenance";
+  label?: string;
 }
 
-export function StatusBadge({ status }: StatusBadgeProps) {
+export function StatusBadge({ status, label }: StatusBadgeProps) {
   const styles = {
     active: "bg-green-500/10 text-green-400",
     available: "bg-blue-500/10 text-blue-400",
@@ -24,7 +25,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         ${styles[status]}
       `}
     >
-      {labels[status]}
+      {label ?? labels[status]}
     </span>
   );
 }
