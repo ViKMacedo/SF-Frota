@@ -12,10 +12,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "SF Frota",
   description: "Sistema operacional de frota",
   manifest: "/manifest.json",
+  icons: { icon: "/app/favicon.ico" },
 };
 
 export default function RootLayout({

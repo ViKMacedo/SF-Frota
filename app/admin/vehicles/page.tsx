@@ -52,7 +52,7 @@ export default function VehiclesPage() {
 
   async function handleCreateVehicle() {
     const plateRegex = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/;
-    if (!model || !plateRegex.test(plate) || km.length < 5 || km.length > 6) {
+    if (!model || !plateRegex.test(plate) || !km) {
       return;
     }
 

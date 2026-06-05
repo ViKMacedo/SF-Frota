@@ -66,6 +66,52 @@ export default function ReportsPage() {
     });
   }, [reportData.recentTrips, statusFilter, driverFilter, vehicleFilter]);
 
+  const filteredStats = useMemo(() => {
+    const totalTrips = filteredTrips.length;
+    const activeTrips = filteredTrips.filter(
+      (trip) => trip.status === "Em andamento",
+    ).length;
+    const finishedTrips = filteredTrips.filter(
+      (trip) => trip.status === "Finalizada",
+    ).length;
+    const totalKm = filteredTrips.reduce(
+      (acc, trip) => acc + (trip.distance || 0),
+      0,
+    );
+    const averageKm = totalTrips > 0 ? Math.round(totalKm / totalTrips) : 0;
+    return {
+      totalTrips,
+      activeTrips,
+      finishedTrips,
+      totalKm,
+      averageKm,
+    };
+  }, [filteredTrips]);
+  const filteredKmPerVehicle = useMemo(() => {
+    const grouped = new Map<string, number>();
+
+    filteredTrips.forEach((trip) => {
+      const current = grouped.get(trip.vehicleModel) || 0;
+      grouped.set(trip.vehicleModel, current + (trip.distance || 0));
+    });
+    return Array.from(grouped.entries()).map(([name, km]) => ({
+      name,
+      km,
+    }));
+  }, [filteredTrips]);
+
+  const filteredTripsPerDriver = useMemo(() => {
+    const grouped = new Map<string, number>();
+    filteredTrips.forEach((trip) => {
+      const current = grouped.get(trip.driverName) || 0;
+      grouped.set(trip.driverName, current + 1);
+    });
+    return Array.from(grouped.entries()).map(([name, trips]) => ({
+      name,
+      trips,
+    }));
+  }, [filteredTrips]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -79,46 +125,26 @@ export default function ReportsPage() {
 
   return (
     <div>
-      {/* Header */}
       <Header
         title="Relatórios"
         description="Indicadores operacionais da frota"
       />
 
-      {/* Actions */}
       <div className="flex flex-wrap gap-4 mt-6 mb-8">
         <button
           onClick={() => exportTripsToPDF(filteredTrips)}
-          className="
-            bg-indigo-600
-            hover:bg-indigo-500
-            px-5
-            py-3
-            rounded-2xl
-            font-medium
-            transition
-          "
+          className="bg-indigo-600 hover:bg-indigo-500 px-5 py-3 rounded-2xl font-medium transition"
         >
           Exportar PDF
         </button>
-
         <button
           onClick={() => exportTripsToExcel(filteredTrips)}
-          className="
-            bg-zinc-800
-            hover:bg-zinc-700
-            px-5
-            py-3
-            rounded-2xl
-            font-medium
-            transition
-          "
+          className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-2xl font-medium transition"
         >
           Exportar Excel
         </button>
       </div>
 
-      {/* Filters */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-8">
         <div className="flex flex-wrap gap-4">
           {/* Status */}
@@ -144,7 +170,7 @@ export default function ReportsPage() {
             <option>Finalizada</option>
           </select>
 
-          {/* Driver */}
+          {/* Motorista */}
           <select
             value={driverFilter}
             onChange={(e) => setDriverFilter(e.target.value)}
@@ -170,7 +196,7 @@ export default function ReportsPage() {
             ))}
           </select>
 
-          {/* Vehicle */}
+          {/* Veículo */}
           <select
             value={vehicleFilter}
             onChange={(e) => setVehicleFilter(e.target.value)}
@@ -200,31 +226,28 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* KPI */}
+      {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
-        <KpiCard title="KM total" value={`${reportData.stats.totalKm} KM`} />
-        <KpiCard
-          title="Utilizações"
-          value={String(reportData.stats.totalTrips)}
-        />
+        <KpiCard title="KM total" value={`${filteredStats.totalKm} KM`} />
+        <KpiCard title="Utilizações" value={String(filteredStats.totalTrips)} />
         <KpiCard
           title="Em andamento"
-          value={String(reportData.stats.activeTrips)}
+          value={String(filteredStats.activeTrips)}
         />
         <KpiCard
           title="Média KM/trip"
-          value={`${reportData.stats.averageKm} KM`}
+          value={`${filteredStats.averageKm} KM`}
         />
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 xl:grid-cols-1 gap-6 mb-10">
+      <div className="grid grid-cols-1 gap-6 mb-10">
         {/* KM por veículo */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
           <h3 className="text-xl font-semibold mb-6">KM por veículo</h3>
           <div className="w-full h-[320px]">
             <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={reportData.kmPerVehicle}>
+              <BarChart data={filteredKmPerVehicle}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis dataKey="name" stroke="#71717a" />
                 <YAxis stroke="#71717a" />
@@ -246,7 +269,7 @@ export default function ReportsPage() {
           <h3 className="text-xl font-semibold mb-6">Trips por motorista</h3>
           <div className="w-full h-[320px]">
             <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={reportData.tripsPerDriver}>
+              <BarChart data={filteredTripsPerDriver}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis dataKey="name" stroke="#71717a" />
                 <YAxis stroke="#71717a" />
@@ -264,7 +287,7 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Tabela */}
       <Table headers={["Motorista", "Veículo", "KM", "Status"]}>
         {filteredTrips.map((trip) => (
           <TableRow key={trip.id}>
