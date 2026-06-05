@@ -113,7 +113,12 @@ export default function TrackingPage() {
         </Table>
       </div>
 
-      {selectedTrip && <TrackingDrawer trip={selectedTrip} />}
+      {selectedTrip && (
+        <TrackingDrawer
+          trip={selectedTrip}
+          onClose={() => setSelectedTrip(null)}
+        />
+      )}
     </div>
   );
 }

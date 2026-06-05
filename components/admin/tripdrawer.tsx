@@ -35,7 +35,24 @@ export function TripDrawer({ trip, open, onClose }: Props) {
               {trip.vehiclePlate} • Utilização #{trip.id}
             </p>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white">
+          <button
+            onClick={onClose}
+            className="
+            w-10
+            h-10
+            rounded-xl
+            bg-zinc-900
+            border
+            border-zinc-800
+            hover:bg-zinc-800
+            transition
+            flex
+            items-center
+            justify-center
+            text-zinc-400
+            hover:text-white
+          "
+          >
             ✕
           </button>
         </div>
