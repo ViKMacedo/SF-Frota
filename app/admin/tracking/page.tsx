@@ -114,10 +114,23 @@ export default function TrackingPage() {
       </div>
 
       {selectedTrip && (
-        <TrackingDrawer
-          trip={selectedTrip}
-          onClose={() => setSelectedTrip(null)}
-        />
+        <>
+          {/* Overlay */}
+          <div
+            className="
+        fixed
+        inset-0
+        bg-black/60
+        backdrop-blur-sm
+        z-[9998]
+      "
+            onClick={() => setSelectedTrip(null)}
+          />
+          <TrackingDrawer
+            trip={selectedTrip}
+            onClose={() => setSelectedTrip(null)}
+          />
+        </>
       )}
     </div>
   );

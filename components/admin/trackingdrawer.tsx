@@ -25,6 +25,7 @@ export function TrackingDrawer({ trip, onClose }: Props) {
         shadow-2xl
         overflow-y-auto
       "
+      onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
