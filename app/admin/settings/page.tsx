@@ -108,9 +108,9 @@ export default function SettingsPage() {
             <FormInput
               value={companyPhone}
               onChange={(e) => setCompanyPhone(e.target.value)}
+              maxLength={11}
             />
           </div>
-
           <div>
             <FormLabel>Email</FormLabel>
             <FormInput

@@ -47,10 +47,13 @@ export default function AdminDashboardPage() {
       />
       {/* KPI */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10 mt-8">
-        <KpiCard title="Disponíveis" value={String(stats.availableVehicles)} />
+        <KpiCard
+          title="Carros Disponíveis"
+          value={String(stats.availableVehicles)}
+        />
         <KpiCard title="Em uso" value={String(stats.activeVehicles)} />
         <KpiCard title="Motoristas" value={String(stats.totalDrivers)} />
-        <KpiCard title="Trips" value={String(stats.totalTrips)} />
+        <KpiCard title="Utilizações" value={String(stats.totalTrips)} />
       </div>
       {/* Table */}
 

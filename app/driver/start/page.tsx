@@ -16,8 +16,8 @@ export default function DriverStartPage() {
   const [, setError] = useState("");
   const router = useRouter();
   const vehicle = getStorage("vehicle");
-  const driver = useMemo(() => {
-    return getStorage("driver");
+  const user = useMemo(() => {
+    return getStorage("user");
   }, []);
 
   async function handleStart() {
@@ -32,7 +32,7 @@ export default function DriverStartPage() {
       return;
     }
 
-    if (!driver) {
+    if (!user) {
       setError("Motorista não encontrado");
       return;
     }
@@ -42,8 +42,8 @@ export default function DriverStartPage() {
       vehicleId: vehicle.id,
       vehicleModel: vehicle.model,
       vehiclePlate: vehicle.plate,
-      driverId: 0,
-      driverName: driver.name,
+      driverId: user.id,
+      driverName: user.name,
       startedAt: new Date().toISOString(),
       status: "Em andamento",
       synced: false,
@@ -67,7 +67,7 @@ export default function DriverStartPage() {
             ← Voltar
           </button>
           <h1 className="text-3xl font-bold text-white">Iniciar uso</h1>
-          <p>Motorista: {driver?.name}</p>
+          <p>Motorista: {user?.name}</p>
           <p className="text-zinc-300 mt-2">
             Confirme o veículo para iniciar a utilização
           </p>

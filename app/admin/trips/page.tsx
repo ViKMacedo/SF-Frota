@@ -86,7 +86,7 @@ export default function TripsPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
         <KpiCard title="Total de utilizações" value={String(totalTrips)} />
         <KpiCard title="Finalizadas" value={String(finishedTrips)} />
         <KpiCard title="Em andamento" value={String(activeTrips)} />

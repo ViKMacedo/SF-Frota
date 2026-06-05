@@ -65,7 +65,7 @@ export default function TrackingPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
         <KpiCard title="Veículos em uso" value={String(activeVehicles)} />
         <KpiCard title="Motoristas ativos" value={String(activeDrivers)} />
-        <KpiCard title="Trips hoje" value={String(todayTrips)} />
+        <KpiCard title="Usos hoje" value={String(todayTrips)} />
         <KpiCard title="KM hoje" value={`${todayKm} km`} />
       </div>
       {/* Map */}

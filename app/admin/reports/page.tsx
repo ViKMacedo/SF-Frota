@@ -218,7 +218,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-10">
+      <div className="grid grid-cols-1 xl:grid-cols-1 gap-6 mb-10">
         {/* KM por veículo */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
           <h3 className="text-xl font-semibold mb-6">KM por veículo</h3>
