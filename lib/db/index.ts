@@ -1,10 +1,39 @@
 import Dexie, { Table } from "dexie";
+
+export interface DriverQueueItem {
+  id: string;
+  entity: "driver";
+  operation: "create" | "update" | "delete";
+  payload: Driver;
+  synced: boolean;
+  createdAt: number;
+}
+
+export interface VehicleQueueItem {
+  id: string;
+  entity: "vehicle";
+  operation: "create" | "update" | "delete";
+  payload: Vehicle;
+  synced: boolean;
+  createdAt: number;
+}
+
+export interface TripQueueItem {
+  id: string;
+  entity: "trip";
+  operation: "create" | "update" | "delete";
+  payload: Trip;
+  synced: boolean;
+  createdAt: number;
+}
+export type SyncQueueItem = DriverQueueItem | VehicleQueueItem | TripQueueItem;
+
 export interface Trip {
-  id?: number;
-  vehicleId: number;
+  id: string;
+  vehicleId: string;
   vehicleModel: string;
   vehiclePlate: string;
-  driverId: number;
+  driverId: string;
   driverName: string;
   startKm: number;
   endKm?: number;
@@ -21,13 +50,12 @@ export interface Trip {
 }
 
 export interface Vehicle {
-  id?: number;
+  id?: string;
   model: string;
   plate: string;
   type: "Carro" | "Caminhão" | "Caminhonete";
   status: "Disponível" | "Em uso" | "Em manutenção" | "Inativo";
   km: number;
-
   lastDriver?: string;
   lastUsedAt?: string;
 }
@@ -37,14 +65,16 @@ class AppDatabase extends Dexie {
   drivers!: Table<Driver>;
   vehicles!: Table<Vehicle>;
   settings!: Table<Settings>;
+  syncQueue!: Table<SyncQueueItem>;
 
   constructor() {
     super("sf-frota-db");
-    this.version(4).stores({
-      vehicles: "++id, plate, status",
-      trips: "++id, vehicleId, status",
-      drivers: "++id, name, registration",
+    this.version(5).stores({
+      vehicles: "id, plate, status",
+      trips: "id, vehicleId, status",
+      drivers: "id, name, registration",
       settings: "id",
+      syncQueue: "id,synced,entity",
     });
   }
 }
@@ -57,7 +87,7 @@ export type VehicleStatus =
   | "Inativo";
 
 export interface Driver {
-  id?: number;
+  id?: string;
   name: string;
   registration: string; // login
   pin: string;
@@ -66,7 +96,7 @@ export interface Driver {
   status: "Ativo" | "Afastado" | "Férias";
 }
 export interface Settings {
-  id: number;
+  id: string;
   companyName: string;
   companyDocument: string;
   companyPhone: string;

@@ -1,10 +1,11 @@
 import { db, type Vehicle, VehicleStatus } from "@/lib/db";
+import { addVehicleToQueue } from "@/services/syncQueueService";
 
 export async function getVehicles(): Promise<Vehicle[]> {
   return await db.vehicles.toArray();
 }
 
-export async function getVehicleById(id: number): Promise<Vehicle | undefined> {
+export async function getVehicleById(id: string): Promise<Vehicle | undefined> {
   return await db.vehicles.get(id);
 }
 
@@ -13,19 +14,33 @@ export async function getVehicleByPlate(
 ): Promise<Vehicle | undefined> {
   return await db.vehicles.where("plate").equals(plate).first();
 }
-export async function updateVehicleStatus(id: number, status: VehicleStatus) {
+export async function updateVehicleStatus(id: string, status: VehicleStatus) {
   await db.vehicles.update(id, {
     status,
   });
 }
 export async function createVehicle(vehicle: Omit<Vehicle, "id">) {
-  return await db.vehicles.add(vehicle);
+  const newVehicle: Vehicle = {
+    ...vehicle,
+    id: crypto.randomUUID(),
+  };
+
+  await db.vehicles.add(newVehicle);
+  await addVehicleToQueue("create", newVehicle);
 }
-export async function updateVehicle(id: number, vehicle: Partial<Vehicle>) {
-  return await db.vehicles.update(id, vehicle);
+export async function updateVehicle(id: string, vehicle: Partial<Vehicle>) {
+  await db.vehicles.update(id, vehicle);
+  const updatedVehicle = await db.vehicles.get(id);
+  if (updatedVehicle) {
+    await addVehicleToQueue("update", updatedVehicle);
+  }
 }
-export async function deleteVehicle(id: number) {
-  return await db.vehicles.delete(id);
+export async function deleteVehicle(id: string) {
+  const vehicle = await db.vehicles.get(id);
+  if (vehicle) {
+    await addVehicleToQueue("delete", vehicle);
+  }
+  await db.vehicles.delete(id);
 }
 export type VehicleWithUsage = Vehicle & {
   lastDriver: string;

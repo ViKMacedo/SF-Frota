@@ -26,7 +26,7 @@ export function useVehicles() {
   function addVehicle(vehicle: Omit<Vehicle, "id">) {
     const newVehicle: Vehicle = {
       ...vehicle,
-      id: Date.now(),
+      id: crypto.randomUUID(),
     };
 
     setVehicles((prev) => [...prev, newVehicle]);
@@ -35,14 +35,14 @@ export function useVehicles() {
   /*
    * DELETE
    */
-  function deleteVehicle(id: number) {
+  function deleteVehicle(id: string) {
     setVehicles((prev) => prev.filter((vehicle) => vehicle.id !== id));
   }
 
   /*
    * UPDATE
    */
-  function updateVehicle(id: number, updatedVehicle: Omit<Vehicle, "id">) {
+  function updateVehicle(id: string, updatedVehicle: Omit<Vehicle, "id">) {
     setVehicles((prev) =>
       prev.map((vehicle) =>
         vehicle.id === id

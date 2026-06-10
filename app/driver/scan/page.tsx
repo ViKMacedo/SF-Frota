@@ -33,7 +33,7 @@ export default function DriverScanPage() {
           return;
         }
 
-        const vehicle = await getVehicleById(Number(data.vehicleId));
+        const vehicle = await getVehicleById(String(data.vehicleId));
         if (!vehicle) {
           alert("Veículo não encontrado");
           return;

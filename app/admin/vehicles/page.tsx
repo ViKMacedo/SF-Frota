@@ -26,8 +26,8 @@ import {
 
 export default function VehiclesPage() {
   const [open, setOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedQrVehicle, setSelectedQrVehicle] = useState<Vehicle | null>(
     null,

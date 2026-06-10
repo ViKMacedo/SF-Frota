@@ -6,6 +6,7 @@ export async function ensureAdmin() {
   if (count > 0) return;
 
   await db.drivers.add({
+    id: crypto.randomUUID(),
     name: "Administrador",
     registration: "admin",
     pin: "1234",

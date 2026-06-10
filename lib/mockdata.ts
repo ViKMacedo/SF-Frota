@@ -1,5 +1,5 @@
 export interface Vehicle {
-  id: number;
+  id: string;
   model: string;
   plate: string;
   km: number;
@@ -9,10 +9,9 @@ export interface Vehicle {
   driver?: string;
   speed?: number;
 }
-
 export const vehicles: Vehicle[] = [
   {
-    id: 1,
+    id: "1",
     model: "Fiat Palio",
     plate: "ABC-1234",
     km: 124221,
@@ -20,7 +19,7 @@ export const vehicles: Vehicle[] = [
   },
 
   {
-    id: 2,
+    id: "2",
     model: "HB20",
     plate: "XYZ-4321",
     km: 88712,
@@ -28,7 +27,7 @@ export const vehicles: Vehicle[] = [
   },
 
   {
-    id: 3,
+    id: "3",
     model: "Hilux",
     plate: "GHI-2134",
     km: 16820,
@@ -37,17 +36,17 @@ export const vehicles: Vehicle[] = [
 ];
 
 export interface Driver {
-  id: number;
+  id: string;
   name: string;
   pin: string;
   licenseCategory: "A" | "B" | "C" | "D" | "E" | "AB";
   status: "Disponível" | "Em rota" | "Inativo";
-  assignedVehicleId: number | null;
+  assignedVehicleId: string | null;
 }
 
 export const drivers: Driver[] = [
   {
-    id: 1,
+    id: "z",
     name: "Victor",
     pin: "1234",
     licenseCategory: "AB",

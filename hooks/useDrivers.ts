@@ -20,16 +20,16 @@ export function useDrivers() {
   function addDriver(driver: Omit<Driver, "id">) {
     const newDriver: Driver = {
       ...driver,
-      id: Date.now(),
+      id: crypto.randomUUID(),
     };
     setDrivers((prev) => [...prev, newDriver]);
   }
 
-  function deleteDriver(id: number) {
+  function deleteDriver(id: string) {
     setDrivers((prev) => prev.filter((driver) => driver.id !== id));
   }
 
-  function updateDriver(id: number, updatedDriver: Omit<Driver, "id">) {
+  function updateDriver(id: string, updatedDriver: Omit<Driver, "id">) {
     setDrivers((prev) =>
       prev.map((driver) =>
         driver.id === id

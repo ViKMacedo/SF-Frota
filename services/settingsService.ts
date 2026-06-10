@@ -6,7 +6,7 @@ export async function getSettings() {
   if (settings) return settings;
 
   const defaults: Settings = {
-    id: 1,
+    id: "default",
     companyName: "SF Frota",
     companyDocument: "",
     companyPhone: "",

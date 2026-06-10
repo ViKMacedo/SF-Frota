@@ -28,7 +28,7 @@ export default function SettingsPage() {
 
   async function handleSave() {
     await saveSettings({
-      id: 1,
+      id: "default",
       companyName,
       companyDocument,
       companyPhone,
