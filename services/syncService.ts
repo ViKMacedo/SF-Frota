@@ -4,38 +4,44 @@ import { getPendingQueue, markAsSynced } from "@/services/syncQueueService";
 import { VehicleQueueItem, DriverQueueItem, TripQueueItem, db } from "@/lib/db";
 
 async function syncVehicle(item: VehicleQueueItem) {
-  const { payload } = item;
+  const { payload, operation } = item;
 
-  try {
-    const { error } = await supabase.from("vehicles").upsert(
-      {
-        id: payload.id,
-        model: payload.model,
-        plate: payload.plate,
-        type: payload.type,
-        status: payload.status,
-        km: payload.km,
-        last_driver: payload.lastDriver,
-        last_used_at: payload.lastUsedAt,
-      },
-      {
-        onConflict: "id",
-      },
-    );
-
-    if (error) {
-      throw error;
-    }
-  } catch (error) {
-    console.log("Erro bruto:", error);
-    console.log("Tipo:", typeof error);
-    console.log("String:", String(error));
-    console.dir(error);
-    throw error;
+  if (operation === "delete") {
+    const { error } = await supabase
+      .from("vehicles")
+      .delete()
+      .eq("id", payload.id);
+    if (error) throw error;
+    return;
   }
+
+  const { error } = await supabase.from("vehicles").upsert(
+    {
+      id: payload.id,
+      model: payload.model,
+      plate: payload.plate,
+      type: payload.type,
+      status: payload.status,
+      km: payload.km,
+      last_driver: payload.lastDriver,
+      last_used_at: payload.lastUsedAt,
+    },
+    { onConflict: "id" },
+  );
+  if (error) throw error;
 }
+
 async function syncDriver(item: DriverQueueItem) {
-  const { payload } = item;
+  const { payload, operation } = item;
+
+  if (operation === "delete") {
+    const { error } = await supabase
+      .from("drivers")
+      .delete()
+      .eq("id", payload.id);
+    if (error) throw error;
+    return;
+  }
 
   const { error } = await supabase.from("drivers").upsert(
     {
@@ -47,15 +53,22 @@ async function syncDriver(item: DriverQueueItem) {
       license: payload.license,
       status: payload.status,
     },
-    {
-      onConflict: "id",
-    },
+    { onConflict: "id" },
   );
-
   if (error) throw error;
 }
+
 async function syncTrip(item: TripQueueItem) {
-  const { payload } = item;
+  const { payload, operation } = item;
+
+  if (operation === "delete") {
+    const { error } = await supabase
+      .from("trips")
+      .delete()
+      .eq("id", payload.id);
+    if (error) throw error;
+    return;
+  }
 
   const { error } = await supabase.from("trips").upsert(
     {
@@ -78,11 +91,8 @@ async function syncTrip(item: TripQueueItem) {
       speed: payload.speed,
       status_label: payload.statusLabel,
     },
-    {
-      onConflict: "id",
-    },
+    { onConflict: "id" },
   );
-
   if (error) throw error;
 }
 

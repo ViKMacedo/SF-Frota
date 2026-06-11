@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { getActiveTrip } from "@/services/tripService";
-import type { Trip } from "@/lib/db";
+import { db, type Trip } from "@/lib/db";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 export default function DriverRunningPage() {
@@ -28,6 +28,31 @@ export default function DriverRunningPage() {
     }
     loadTrip();
   }, [router]);
+
+  useEffect(() => {
+    if (!trip?.id) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, speed } = position.coords;
+        db.trips.update(trip.id!, {
+          lat: latitude,
+          lng: longitude,
+          speed: speed ? Math.round(speed * 3.6) : 0, // m/s → km/h
+        });
+      },
+      (error) => {
+        console.error("Erro GPS:", error);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10000,
+        timeout: 15000,
+      },
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [trip?.id]);
 
   useEffect(() => {
     function updateTime() {

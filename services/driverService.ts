@@ -18,11 +18,19 @@ export async function createDriver(driver: Omit<Driver, "id">) {
 }
 
 export async function updateDriver(id: string, driver: Partial<Driver>) {
-  return await db.drivers.update(id, driver);
+  await db.drivers.update(id, driver);
+  const updatedDriver = await db.drivers.get(id);
+  if (updatedDriver) {
+    await addDriverToQueue("update", updatedDriver);
+  }
 }
 
 export async function deleteDriver(id: string) {
-  return await db.drivers.delete(id);
+  const driver = await db.drivers.get(id);
+  if (!driver) return;
+
+  await db.drivers.delete(id);
+  await addDriverToQueue("delete", driver);
 }
 
 export async function getDriverById(id: string) {

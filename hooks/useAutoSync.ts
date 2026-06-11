@@ -9,6 +9,7 @@ export function useAutoSync() {
       syncPendingItems();
     }
   }, []);
+
   useEffect(() => {
     const handleOnline = async () => {
       console.log("Internet restaurada. Sincronizando...");
@@ -16,9 +17,16 @@ export function useAutoSync() {
     };
 
     window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, []);
 
-    return () => {
-      window.removeEventListener("online", handleOnline);
-    };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (navigator.onLine) {
+        syncPendingItems();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, []);
 }

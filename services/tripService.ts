@@ -1,5 +1,5 @@
 import { db, Trip } from "@/lib/db";
-import { addTripToQueue } from "@/services/syncQueueService";
+import { addTripToQueue, addVehicleToQueue } from "@/services/syncQueueService";
 
 export async function createTrip(trip: Omit<Trip, "id" | "startKm">) {
   const vehicle = await db.vehicles.get(trip.vehicleId);
@@ -55,6 +55,11 @@ export async function finishTrip(id: string, data: Partial<Trip>) {
     lastDriver: trip.driverName,
     lastUsedAt: new Date().toISOString(),
   });
+
+  const updatedVehicle = await db.vehicles.get(trip.vehicleId);
+  if (updatedVehicle) {
+    await addVehicleToQueue("update", updatedVehicle);
+  }
 }
 export async function getLastFinishedTrip() {
   const trips = await db.trips.toArray();

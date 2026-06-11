@@ -37,9 +37,9 @@ export async function updateVehicle(id: string, vehicle: Partial<Vehicle>) {
 }
 export async function deleteVehicle(id: string) {
   const vehicle = await db.vehicles.get(id);
-  if (vehicle) {
-    await addVehicleToQueue("delete", vehicle);
-  }
+  if (!vehicle) return;
+
+  await addVehicleToQueue("delete", vehicle);
   await db.vehicles.delete(id);
 }
 export type VehicleWithUsage = Vehicle & {
