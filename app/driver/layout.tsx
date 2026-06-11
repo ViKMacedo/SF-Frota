@@ -1,10 +1,10 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuthGuard } from "@/hooks/useAuthGuard";
-import { getStorage, removeStorage } from "@/lib/storage";
+import { clearSession, getSession } from "@/services/sessionService";
 
 type Props = {
   children: ReactNode;
@@ -12,11 +12,29 @@ type Props = {
 
 export default function DriverLayout({ children }: Props) {
   useAuthGuard("driver");
+
   const router = useRouter();
-  const user = getStorage("user");
-  function logout() {
-    removeStorage("user");
-    router.push("/login");
+
+  const [user, setUser] = useState<Awaited<
+    ReturnType<typeof getSession>
+  > | null>(null);
+
+  useEffect(() => {
+    async function loadSession() {
+      const session = await getSession();
+      setUser(session);
+    }
+
+    loadSession();
+  }, []);
+
+  async function logout() {
+    await clearSession();
+    router.replace("/login");
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (
@@ -24,8 +42,10 @@ export default function DriverLayout({ children }: Props) {
       <header className="border-b border-zinc-800">
         <div className="px-6 h-16 flex items-center justify-between">
           <h1 className="font-bold">SF Frota</h1>
+
           <div className="flex items-center gap-3">
-            <span className="text-sm text-zinc-400">{user?.name}</span>
+            <span className="text-sm text-zinc-400">{user.name}</span>
+
             <button
               onClick={logout}
               className="px-3 py-2 rounded-xl bg-zinc-800"

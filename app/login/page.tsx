@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 
 import { getStorage } from "@/lib/storage";
 import { db, type Driver } from "@/lib/db";
-import { setSupabaseSession } from "@/lib/supabase";
+import { createSession } from "@/services/sessionService";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -58,7 +58,7 @@ export default function LoginPage() {
       return;
     }
 
-    await setSupabaseSession(data.token);
+    await createSession(data.driver);
 
     await db.drivers.put(data.driver);
 

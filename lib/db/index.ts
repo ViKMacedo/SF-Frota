@@ -65,15 +65,17 @@ class AppDatabase extends Dexie {
   vehicles!: Table<Vehicle>;
   settings!: Table<Settings>;
   syncQueue!: Table<SyncQueueItem>;
+  sessions!: Table<Session>;
 
   constructor() {
     super("sf-frota-db");
-    this.version(5).stores({
+    this.version(6).stores({
       vehicles: "id, plate, status",
       trips: "id, vehicleId, status",
       drivers: "id, name, registration",
       settings: "id",
       syncQueue: "id,synced,entity",
+      sessions: "id",
     });
   }
 }
@@ -104,4 +106,11 @@ export interface Settings {
   allowDeleteDrivers: boolean;
   allowDeleteVehicles: boolean;
   allowDeleteTrips: boolean;
+}
+export interface Session {
+  id: "current";
+  userId: string;
+  name: string;
+  role: "admin" | "driver";
+  loginAt: string;
 }

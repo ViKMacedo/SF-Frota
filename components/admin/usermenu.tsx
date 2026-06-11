@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { getStorage } from "@/lib/storage";
-import { supabase } from "@/lib/supabase";
+import { clearSession } from "@/services/sessionService";
 
 type User = {
   name: string;
@@ -13,7 +13,7 @@ export function UserMenu() {
   const router = useRouter();
   const user = getStorage("user") as User | null;
   async function handleLogout() {
-    await supabase.auth.signOut();
+    await clearSession();
     router.push("/login");
   }
   if (!user) return null;

@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/admin/sidebar";
 import { getStorage } from "@/lib/storage";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
-import { supabase } from "@/lib/supabase";
+import { clearSession } from "@/services/sessionService";
 
 type User = {
   name: string;
@@ -46,7 +46,7 @@ export default function AdminLayout({
   }, []);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    await clearSession();
     router.push("/login");
   }
 
