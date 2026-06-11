@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { getStorage, removeStorage } from "@/lib/storage";
+import { getStorage } from "@/lib/storage";
+import { supabase } from "@/lib/supabase";
 
 type User = {
   name: string;
@@ -11,8 +12,8 @@ type User = {
 export function UserMenu() {
   const router = useRouter();
   const user = getStorage("user") as User | null;
-  function handleLogout() {
-    removeStorage("user");
+  async function handleLogout() {
+    await supabase.auth.signOut();
     router.push("/login");
   }
   if (!user) return null;

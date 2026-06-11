@@ -1,25 +1,26 @@
-"use client";
-
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
-import { getStorage } from "@/lib/storage";
-
-type Role = "admin" | "driver";
-
-export function useAuthGuard(role: Role) {
+export function useAuthGuard(requiredRole: "admin" | "driver") {
   const router = useRouter();
 
   useEffect(() => {
-    const user = getStorage("user");
+    async function check() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
 
-    if (user.role !== role) {
-      router.replace("/login");
+      const role = session.user.app_metadata?.role;
+      if (role !== requiredRole) {
+        router.replace(role === "admin" ? "/admin/dashboard" : "/driver/scan");
+      }
     }
-  }, [router, role]);
+    check();
+  }, [requiredRole, router]);
 }

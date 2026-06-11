@@ -11,14 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-import { saveStorage, getStorage } from "@/lib/storage";
-import type { Driver } from "@/lib/db";
+import { getStorage } from "@/lib/storage";
+import { db, type Driver } from "@/lib/db";
+import { setSupabaseSession } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
 
   const [name, setName] = useState("");
-  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [, setDrivers] = useState<Driver[]>([]);
   const [pin, setPin] = useState("");
 
   useEffect(() => {
@@ -44,23 +45,24 @@ export default function LoginPage() {
   }, [router]);
 
   async function handleLogin() {
-    const drivers = await getDrivers();
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ registration: name, pin }),
+    });
 
-    const user = drivers.find(
-      (driver) =>
-        driver.registration === name &&
-        driver.pin === pin &&
-        driver.status === "Ativo",
-    );
+    const data = await res.json();
 
-    if (!user) {
-      alert("Usuário ou PIN inválido");
+    if (!res.ok) {
+      alert(data.error);
       return;
     }
 
-    saveStorage("user", user);
+    await setSupabaseSession(data.token);
 
-    if (user.role === "admin") {
+    await db.drivers.put(data.driver);
+
+    if (data.driver.role === "admin") {
       router.push("/admin/dashboard");
     } else {
       router.push("/driver/scan");

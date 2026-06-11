@@ -74,7 +74,6 @@ export default function DriverStartPage({
       lat: -24.021347,
       lng: -48.362951,
     });
-
     await updateVehicleStatus(vehicle.id!, "Em uso");
 
     router.push("/driver/running");
@@ -101,7 +100,6 @@ export default function DriverStartPage({
           >
             ← Voltar{" "}
           </button>
-          ```
           <h1 className="text-3xl font-bold text-white">Iniciar uso</h1>
           <p>Motorista: {user?.name}</p>
           <p className="text-zinc-300 mt-2">
