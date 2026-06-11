@@ -46,17 +46,7 @@ export async function getPendingQueue() {
   return await db.syncQueue.filter((item) => !item.synced).toArray();
 }
 export async function markAsSynced(id: string) {
-  console.log("MARCANDO:", id);
-
-  const before = await db.syncQueue.toArray();
-  console.log("ANTES UPDATE", before);
-
-  await db.syncQueue.update(id, {
-    synced: true,
-  });
-
-  const after = await db.syncQueue.toArray();
-  console.log("DEPOIS UPDATE", after);
+  await db.syncQueue.delete(id);
 }
 
 export async function removeFromQueue(id: string) {

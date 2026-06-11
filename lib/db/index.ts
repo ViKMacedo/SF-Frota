@@ -27,7 +27,6 @@ export interface TripQueueItem {
   createdAt: number;
 }
 export type SyncQueueItem = DriverQueueItem | VehicleQueueItem | TripQueueItem;
-
 export interface Trip {
   id: string;
   vehicleId: string;
@@ -50,7 +49,7 @@ export interface Trip {
 }
 
 export interface Vehicle {
-  id?: string;
+  id: string;
   model: string;
   plate: string;
   type: "Carro" | "Caminhão" | "Caminhonete";
@@ -87,7 +86,7 @@ export type VehicleStatus =
   | "Inativo";
 
 export interface Driver {
-  id?: string;
+  id: string;
   name: string;
   registration: string; // login
   pin: string;

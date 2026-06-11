@@ -1,64 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 
-import { Vehicle, vehicles as initialVehicles } from "@/lib/mockdata";
+import { db, Vehicle } from "@/lib/db";
+
+import {
+  createVehicle,
+  deleteVehicle,
+  updateVehicle,
+} from "@/services/vehicleService";
 
 export function useVehicles() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
-    if (typeof window === "undefined") {
-      return initialVehicles;
-    }
-    const storedVehicles = localStorage.getItem("vehicles");
-    return storedVehicles ? JSON.parse(storedVehicles) : initialVehicles;
-  });
+  const vehicles = useLiveQuery(() => db.vehicles.toArray(), []) ?? [];
 
-  /*
-   * SAVE
-   */
-  useEffect(() => {
-    localStorage.setItem("vehicles", JSON.stringify(vehicles));
-  }, [vehicles]);
-
-  /*
-   * CREATE
-   */
-  function addVehicle(vehicle: Omit<Vehicle, "id">) {
-    const newVehicle: Vehicle = {
-      ...vehicle,
-      id: crypto.randomUUID(),
-    };
-
-    setVehicles((prev) => [...prev, newVehicle]);
+  async function addVehicle(vehicle: Omit<Vehicle, "id">) {
+    await createVehicle(vehicle);
   }
 
-  /*
-   * DELETE
-   */
-  function deleteVehicle(id: string) {
-    setVehicles((prev) => prev.filter((vehicle) => vehicle.id !== id));
+  async function removeVehicle(id: string) {
+    await deleteVehicle(id);
   }
 
-  /*
-   * UPDATE
-   */
-  function updateVehicle(id: string, updatedVehicle: Omit<Vehicle, "id">) {
-    setVehicles((prev) =>
-      prev.map((vehicle) =>
-        vehicle.id === id
-          ? {
-              ...vehicle,
-              ...updatedVehicle,
-            }
-          : vehicle,
-      ),
-    );
+  async function editVehicle(id: string, updatedVehicle: Omit<Vehicle, "id">) {
+    await updateVehicle(id, updatedVehicle);
   }
 
   return {
     vehicles,
     addVehicle,
-    deleteVehicle,
-    updateVehicle,
+    deleteVehicle: removeVehicle,
+    updateVehicle: editVehicle,
   };
 }
