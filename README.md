@@ -43,6 +43,8 @@ O projeto possui:
 - TailwindCSS
 - Leaflet
 - React Leaflet
+- Supabase
+- Deno
 
 ---
 
@@ -51,9 +53,13 @@ O projeto possui:
 ```bash
 app/
 components/
+constants/
 hooks/
 lib/
 public/
+services/
+supabase/
+types/
 ```
 
 ---
@@ -119,7 +125,7 @@ export default nextConfig;
 Exemplo:
 
 ```ts
-allowedDevOrigins: ["192.168.2.64"];
+allowedDevOrigins: ["192.000.0.00"];
 ```
 
 ---
@@ -165,14 +171,9 @@ npm start
 
 ## Próximos passos
 
-- Integração entre admin e motorista
-- Persistência real de viagens
-- Backend/API
-- Banco de dados
-- Autenticação
-- QR Code real
-- Dashboard analítico
 - Tracking em tempo real
+- Fallback caso não aceite localização
+- Refino de UX
 
 ---
 
@@ -193,7 +194,3 @@ O projeto foi desenvolvido como estudo prático de:
 # 👨‍💻 Autor
 
 Victor Macedo
-
-```
-
-```
