@@ -69,7 +69,7 @@ class AppDatabase extends Dexie {
 
   constructor() {
     super("sf-frota-db");
-    this.version(6).stores({
+    this.version(7).stores({
       vehicles: "id, plate, status",
       trips: "id, vehicleId, status",
       drivers: "id, name, registration",
@@ -113,4 +113,5 @@ export interface Session {
   name: string;
   role: "admin" | "driver";
   loginAt: string;
+  token: string;
 }

@@ -58,8 +58,7 @@ export default function LoginPage() {
       return;
     }
 
-    await createSession(data.driver);
-
+    await createSession(data.driver, data.token);
     await db.drivers.put(data.driver);
 
     if (data.driver.role === "admin") {

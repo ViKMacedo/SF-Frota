@@ -4,13 +4,14 @@ export async function createSession(user: {
   id: string;
   name: string;
   role: "admin" | "driver";
-}) {
+}, token: string) {
   await db.sessions.put({
     id: "current",
     userId: user.id,
     name: user.name,
     role: user.role,
     loginAt: new Date().toISOString(),
+    token,
   });
 }
 
