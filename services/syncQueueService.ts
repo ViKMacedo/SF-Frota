@@ -1,4 +1,4 @@
-import { db, Driver, Vehicle, Trip } from "@/lib/db";
+import { db, Driver, Settings, Trip, Vehicle } from "@/lib/db";
 
 export async function addDriverToQueue(
   operation: "create" | "update" | "delete",
@@ -35,6 +35,20 @@ export async function addTripToQueue(
   await db.syncQueue.add({
     id: crypto.randomUUID(),
     entity: "trip",
+    operation,
+    payload,
+    synced: false,
+    createdAt: Date.now(),
+  });
+}
+
+export async function addSettingsToQueue(
+  operation: "create" | "update" | "delete",
+  payload: Settings,
+) {
+  await db.syncQueue.add({
+    id: crypto.randomUUID(),
+    entity: "settings",
     operation,
     payload,
     synced: false,

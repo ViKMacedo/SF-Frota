@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("8h")
+    .setExpirationTime("1d")
     .sign(secret);
 
   return NextResponse.json({ token, driver });

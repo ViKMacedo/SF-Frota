@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
 import type { Settings } from "@/lib/db";
+import { addSettingsToQueue } from "@/services/syncQueueService";
 
 export async function getSettings() {
-  const settings = await db.settings.get(1);
+  const settings = await db.settings.get("default");
   if (settings) return settings;
 
   const defaults: Settings = {
@@ -21,4 +22,5 @@ export async function getSettings() {
 }
 export async function saveSettings(settings: Settings) {
   await db.settings.put(settings);
+  await addSettingsToQueue("update", settings);
 }

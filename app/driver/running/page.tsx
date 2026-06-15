@@ -20,7 +20,7 @@ export default function DriverRunningPage() {
     async function loadTrip() {
       const activeTrip = await getActiveTrip();
       if (!activeTrip) {
-        router.push("/driver/start");
+        router.push("/driver/start/[vehicleId]");
 
         return;
       }

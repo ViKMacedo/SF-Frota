@@ -3,6 +3,8 @@ import { jwtVerify } from "jose";
 import { createClient } from "@supabase/supabase-js";
 import {
     DriverQueueItem,
+    Settings,
+    SettingsQueueItem,
     SyncQueueItem,
     TripQueueItem,
     VehicleQueueItem,
@@ -14,9 +16,19 @@ const supabaseAdmin = createClient(
 );
 
 const ENTITY_ORDER: Record<SyncQueueItem["entity"], number> = {
+    settings: -1,
     driver: 0,
     vehicle: 1,
     trip: 2,
+};
+
+const DELETE_FLAG_BY_ENTITY: Record<
+    "driver" | "vehicle" | "trip",
+    "allowDeleteDrivers" | "allowDeleteVehicles" | "allowDeleteTrips"
+> = {
+    driver: "allowDeleteDrivers",
+    vehicle: "allowDeleteVehicles",
+    trip: "allowDeleteTrips",
 };
 
 export async function POST(req: NextRequest) {
@@ -41,51 +53,81 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ results: [] });
     }
 
-    // 2. Ordena: drivers -> vehicles -> trips (resolve FK de vehicle_id em trips)
+    // 2. Ordena: settings -> drivers -> vehicles -> trips (resolve FK de vehicle_id em trips)
     const sorted = [...items].sort(
         (a, b) => ENTITY_ORDER[a.entity] - ENTITY_ORDER[b.entity],
     );
+
+    // 2.1 Busca as configurações de exclusão (allowDeleteDrivers/Vehicles/Trips)
+    const settings = await getDeleteSettings();
 
     const results: { id: string; success: boolean; error?: string }[] = [];
 
     for (const item of sorted) {
         try {
-            // 3. Apenas admin pode excluir
-            if (item.operation === "delete" && role !== "admin") {
-                throw new Error(
-                    "Apenas administradores podem excluir registros",
-                );
+            // 3. Apenas admin pode excluir, e somente se a flag correspondente permitir
+            if (item.operation === "delete") {
+                if (role !== "admin") {
+                    throw new Error(
+                        "Apenas administradores podem excluir registros",
+                    );
+                }
+
+                if (item.entity !== "settings") {
+                    const flag = DELETE_FLAG_BY_ENTITY[item.entity];
+                    if (!settings[flag]) {
+                        throw new Error(
+                            "Exclusão desabilitada nas configurações do sistema",
+                        );
+                    }
+                }
             }
 
             await processItem(item);
             results.push({ id: item.id, success: true });
         } catch (error) {
-            console.error("[SYNC ERROR]", error);
-
-            results.push({
-                id: item.id,
-                success: false,
-                error: error instanceof Error
-                    ? error.message
-                    : JSON.stringify(error, null, 2),
-            });
+            results.push({ id: item.id, success: false, error: String(error) });
         }
     }
 
     return NextResponse.json({ results });
 }
 
+// ─── Configurações de exclusão ─────────────────────────────────────────────
+
+const DEFAULT_DELETE_SETTINGS: Pick<
+    Settings,
+    "allowDeleteDrivers" | "allowDeleteVehicles" | "allowDeleteTrips"
+> = {
+    allowDeleteDrivers: true,
+    allowDeleteVehicles: true,
+    allowDeleteTrips: false,
+};
+
+async function getDeleteSettings() {
+    const { data, error } = await supabaseAdmin
+        .from("settings")
+        .select("allowDeleteDrivers, allowDeleteVehicles, allowDeleteTrips")
+        .eq("id", "default")
+        .maybeSingle();
+
+    if (error || !data) {
+        return DEFAULT_DELETE_SETTINGS;
+    }
+
+    return {
+        allowDeleteDrivers: data.allowDeleteDrivers ?? true,
+        allowDeleteVehicles: data.allowDeleteVehicles ?? true,
+        allowDeleteTrips: data.allowDeleteTrips ?? false,
+    };
+}
+
 // ─── Processamento por entidade ────────────────────────────────────────────
 
 async function processItem(item: SyncQueueItem) {
-    console.log(
-        "[SYNC ITEM]",
-        item.id,
-        item.entity,
-        item.operation,
-        item.payload,
-    );
     switch (item.entity) {
+        case "settings":
+            return processSettings(item);
         case "driver":
             return processDriver(item);
         case "vehicle":
@@ -93,6 +135,30 @@ async function processItem(item: SyncQueueItem) {
         case "trip":
             return processTrip(item);
     }
+}
+
+async function processSettings(item: SettingsQueueItem) {
+    if (item.operation === "delete") {
+        // Configurações não são excluídas, apenas atualizadas.
+        return;
+    }
+
+    const { payload } = item;
+    const { error } = await supabaseAdmin.from("settings").upsert(
+        {
+            id: payload.id,
+            companyName: payload.companyName,
+            companyDocument: payload.companyDocument,
+            companyPhone: payload.companyPhone,
+            companyEmail: payload.companyEmail,
+            sessionTimeout: payload.sessionTimeout,
+            allowDeleteDrivers: payload.allowDeleteDrivers,
+            allowDeleteVehicles: payload.allowDeleteVehicles,
+            allowDeleteTrips: payload.allowDeleteTrips,
+        },
+        { onConflict: "id" },
+    );
+    if (error) throw error;
 }
 
 async function processDriver(item: DriverQueueItem) {

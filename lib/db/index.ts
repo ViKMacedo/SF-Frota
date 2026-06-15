@@ -26,7 +26,20 @@ export interface TripQueueItem {
   synced: boolean;
   createdAt: number;
 }
-export type SyncQueueItem = DriverQueueItem | VehicleQueueItem | TripQueueItem;
+
+export interface SettingsQueueItem {
+  id: string;
+  entity: "settings";
+  operation: "create" | "update" | "delete";
+  payload: Settings;
+  synced: boolean;
+  createdAt: number;
+}
+export type SyncQueueItem =
+  | DriverQueueItem
+  | VehicleQueueItem
+  | TripQueueItem
+  | SettingsQueueItem;
 export interface Trip {
   id: string;
   vehicleId: string;
