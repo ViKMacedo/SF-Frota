@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLiveQuery } from "dexie-react-hooks";
 
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
-import { getStorage } from "@/lib/storage";
-import type { Vehicle } from "@/lib/db";
+import { db, type Vehicle } from "@/lib/db";
 
 import { createTrip, getActiveTrip } from "@/services/tripService";
 import { getVehicleById, updateVehicleStatus } from "@/services/vehicleService";
@@ -23,9 +23,7 @@ export default function DriverStartPage({
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [, setError] = useState("");
 
-  const user = useMemo(() => {
-    return getStorage("user");
-  }, []);
+  const session = useLiveQuery(() => db.sessions.get("current"), []);
 
   useEffect(() => {
     async function loadVehicle() {
@@ -57,7 +55,7 @@ export default function DriverStartPage({
       return;
     }
 
-    if (!user) {
+    if (!session) {
       setError("Motorista não encontrado");
       return;
     }
@@ -66,8 +64,8 @@ export default function DriverStartPage({
       vehicleId: vehicle.id!,
       vehicleModel: vehicle.model,
       vehiclePlate: vehicle.plate,
-      driverId: user.id!,
-      driverName: user.name,
+      driverId: session.id!,
+      driverName: session.name,
       startedAt: new Date().toISOString(),
       status: "Em andamento",
       synced: false,
@@ -101,7 +99,7 @@ export default function DriverStartPage({
             ← Voltar{" "}
           </button>
           <h1 className="text-3xl font-bold text-white">Iniciar uso</h1>
-          <p>Motorista: {user?.name}</p>
+          <p>Motorista: {session?.name}</p>
           <p className="text-zinc-300 mt-2">
             Confirme o veículo para iniciar a utilização
           </p>

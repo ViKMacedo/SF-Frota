@@ -11,11 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-import { getStorage } from "@/lib/storage";
+import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Driver } from "@/lib/db";
 import { createSession } from "@/services/sessionService";
 
 export default function LoginPage() {
+  const session = useLiveQuery(() => db.sessions.get("current"), []);
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -35,14 +36,14 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    const user = getStorage("user");
-    if (!user) return;
-    if (user.role === "admin") {
+    if (!session) return;
+
+    if (session.role === "admin") {
       router.replace("/admin/dashboard");
     } else {
       router.replace("/driver/scan");
     }
-  }, [router]);
+  }, [session, router]);
 
   async function handleLogin() {
     const res = await fetch("/api/auth/login", {
