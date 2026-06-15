@@ -2,38 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-
-import { getDrivers } from "@/services/driverService";
-import { ensureAdmin } from "@/services/setupService";
+import { useLiveQuery } from "dexie-react-hooks";
 
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-import { useLiveQuery } from "dexie-react-hooks";
-import { db, type Driver } from "@/lib/db";
+import { db } from "@/lib/db";
 import { createSession } from "@/services/sessionService";
+import { bootstrapDatabase } from "@/services/bootstrapService";
 
 export default function LoginPage() {
   const session = useLiveQuery(() => db.sessions.get("current"), []);
+
   const router = useRouter();
 
   const [name, setName] = useState("");
-  const [, setDrivers] = useState<Driver[]>([]);
   const [pin, setPin] = useState("");
-
-  useEffect(() => {
-    ensureAdmin();
-  }, []);
-
-  useEffect(() => {
-    async function loadDrivers() {
-      const data = await getDrivers();
-      setDrivers(data);
-    }
-    loadDrivers();
-  }, []);
 
   useEffect(() => {
     if (!session) return;
@@ -48,8 +34,13 @@ export default function LoginPage() {
   async function handleLogin() {
     const res = await fetch("/api/auth/login", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ registration: name, pin }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        registration: name,
+        pin,
+      }),
     });
 
     const data = await res.json();
@@ -60,7 +51,24 @@ export default function LoginPage() {
     }
 
     await createSession(data.driver, data.token);
-    await db.drivers.put(data.driver);
+
+    const bootstrapRes = await fetch("/api/bootstrap", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        token: data.token,
+      }),
+    });
+
+    if (!bootstrapRes.ok) {
+      alert("Falha ao carregar dados iniciais");
+      return;
+    }
+    const bootstrap = await bootstrapDatabase(data.token);
+
+    console.log("BOOTSTRAP:", bootstrap);
 
     if (data.driver.role === "admin") {
       router.push("/admin/dashboard");
@@ -78,12 +86,14 @@ export default function LoginPage() {
             Controle de utilização de veículos
           </p>
         </div>
+
         <div className="space-y-4">
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Usuário"
           />
+
           <Input
             value={pin}
             onChange={(e) => setPin(e.target.value)}
@@ -91,6 +101,7 @@ export default function LoginPage() {
             placeholder="PIN"
             maxLength={4}
           />
+
           <Button
             onClick={handleLogin}
             className="w-full h-12 rounded-xl text-base font-semibold"

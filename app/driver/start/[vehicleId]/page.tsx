@@ -64,7 +64,7 @@ export default function DriverStartPage({
       vehicleId: vehicle.id!,
       vehicleModel: vehicle.model,
       vehiclePlate: vehicle.plate,
-      driverId: session.id!,
+      driverId: session.userId!,
       driverName: session.name,
       startedAt: new Date().toISOString(),
       status: "Em andamento",

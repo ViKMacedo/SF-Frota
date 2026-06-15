@@ -60,7 +60,15 @@ export async function POST(req: NextRequest) {
             await processItem(item);
             results.push({ id: item.id, success: true });
         } catch (error) {
-            results.push({ id: item.id, success: false, error: String(error) });
+            console.error("[SYNC ERROR]", error);
+
+            results.push({
+                id: item.id,
+                success: false,
+                error: error instanceof Error
+                    ? error.message
+                    : JSON.stringify(error, null, 2),
+            });
         }
     }
 
@@ -70,6 +78,13 @@ export async function POST(req: NextRequest) {
 // ─── Processamento por entidade ────────────────────────────────────────────
 
 async function processItem(item: SyncQueueItem) {
+    console.log(
+        "[SYNC ITEM]",
+        item.id,
+        item.entity,
+        item.operation,
+        item.payload,
+    );
     switch (item.entity) {
         case "driver":
             return processDriver(item);

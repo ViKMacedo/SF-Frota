@@ -42,7 +42,10 @@ export async function syncPendingItems() {
     if (result.success) {
       await markAsSynced(result.id);
     } else {
-      console.warn(`[Sync] Item ${result.id} falhou:`, result.error);
+      console.error(
+        `[Sync] Item ${result.id} falhou`,
+        result,
+      );
     }
   }
 }
