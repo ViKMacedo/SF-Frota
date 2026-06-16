@@ -11,12 +11,3 @@ export const supabase = createClient(
     },
   },
 );
-
-export async function setSupabaseSession(token: string) {
-  console.log(await supabase.auth.getSession());
-  await supabase.auth.setSession({
-    access_token: token,
-    refresh_token: token,
-  });
-  console.log(await supabase.auth.getSession());
-}

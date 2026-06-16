@@ -12,7 +12,7 @@ import {
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!, // sb_secret_...
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 const ENTITY_ORDER: Record<SyncQueueItem["entity"], number> = {
