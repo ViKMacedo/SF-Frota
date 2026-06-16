@@ -1,6 +1,15 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getSession } from "@/services/sessionService";
+import { clearSession, getSession } from "@/services/sessionService";
+
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true; // token malformado — trata como expirado
+  }
+}
 
 export function useAuthGuard(requiredRole: "admin" | "driver") {
   const router = useRouter();
@@ -11,6 +20,12 @@ export function useAuthGuard(requiredRole: "admin" | "driver") {
 
       if (!session) {
         router.replace("/login");
+        return;
+      }
+
+      if (isTokenExpired(session.token)) {
+        await clearSession();
+        router.replace("/login?expired=true");
         return;
       }
 

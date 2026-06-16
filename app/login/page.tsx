@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { MobileLayout } from "@/components/layout/mobile-layout";
@@ -15,8 +15,9 @@ import { bootstrapDatabase } from "@/services/bootstrapService";
 
 export default function LoginPage() {
   const session = useLiveQuery(() => db.sessions.get("current"), []);
-
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const expired = searchParams.get("expired") === "true";
 
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
@@ -86,6 +87,13 @@ export default function LoginPage() {
             Controle de utilização de veículos
           </p>
         </div>
+
+        {/* Aviso de sessão expirada */}
+        {expired && (
+          <div className="mb-6 px-4 py-3 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-300 text-sm">
+            Sua sessão expirou. Faça login novamente para continuar.
+          </div>
+        )}
 
         <div className="space-y-4">
           <Input

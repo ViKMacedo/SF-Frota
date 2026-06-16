@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { QRScanner } from "@/components/driver/qrscanner";
+import { Toast } from "@/components/Toast";
+import { useToast } from "@/hooks/useToast";
 
 import { getVehicleById } from "@/services/vehicleService";
 import { getActiveTrip } from "@/services/tripService";
@@ -15,16 +17,15 @@ export default function DriverScanPage() {
   useAuthGuard("driver");
 
   const router = useRouter();
+  const { toast, showToast, clearToast } = useToast();
 
   useEffect(() => {
     async function checkActiveTrip() {
       const activeTrip = await getActiveTrip();
-
       if (activeTrip) {
         router.push("/driver/running");
       }
     }
-
     checkActiveTrip();
   }, [router]);
 
@@ -34,45 +35,45 @@ export default function DriverScanPage() {
         const data = JSON.parse(decodedText);
 
         if (!data.vehicleId) {
-          alert("QR inválido");
+          showToast("QR inválido", "error");
           return;
         }
 
         const vehicle = await getVehicleById(String(data.vehicleId));
 
         if (!vehicle) {
-          alert("Veículo não encontrado");
+          showToast("Veículo não encontrado", "error");
           return;
         }
 
         if (vehicle.status !== "Disponível") {
-          alert("Veículo indisponível");
+          showToast("Veículo indisponível no momento", "warning");
           return;
         }
 
         if (!vehicle.id) {
-          alert("Veículo sem ID, recadastre-o");
+          showToast("Veículo sem ID, recadastre-o", "error");
           return;
         }
+
         router.push(`/driver/start/${vehicle.id}`);
       } catch {
-        alert("Erro ao ler QR Code");
+        showToast("Erro ao ler QR Code", "error");
       }
     },
-    [router],
+    [router, showToast],
   );
 
   return (
     <MobileLayout>
-      {" "}
+      <Toast toast={toast} onClose={clearToast} />
       <main className="min-h-screen bg-gradient-to-b from-indigo-950 to-indigo-900 text-white max-w-sm mx-auto flex flex-col p-6">
-        {" "}
         <div className="mb-10">
           <button
             onClick={() => router.back()}
             className="text-sm text-zinc-400 mb-6"
           >
-            ← Voltar{" "}
+            ← Voltar
           </button>
 
           <h1 className="text-2xl font-bold">Escanear QR Code</h1>
