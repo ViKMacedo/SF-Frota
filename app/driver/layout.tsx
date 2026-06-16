@@ -45,7 +45,6 @@ export default function DriverLayout({ children }: Props) {
 
           <div className="flex items-center gap-3">
             <span className="text-sm text-zinc-400">{user.name}</span>
-
             <button
               onClick={logout}
               className="px-3 py-2 rounded-xl bg-zinc-800"

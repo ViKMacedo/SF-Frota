@@ -41,6 +41,15 @@ function mapTrip(trip: {
     lng?: number;
     speed?: number | null;
     status_label?: string | null;
+    route?: Array<{
+        lat: number;
+        lng: number;
+        speed: number;
+        heading?: number;
+        accuracy?: number;
+        ts: number;
+        accel?: number;
+    }>;
 }): Trip {
     return {
         id: trip.id,
@@ -61,6 +70,7 @@ function mapTrip(trip: {
         lng: trip.lng,
         speed: trip.speed ?? undefined,
         statusLabel: trip.status_label ?? undefined,
+        route: trip.route ?? [], // ✅ Fix: preserva histórico de rota GPS
     };
 }
 

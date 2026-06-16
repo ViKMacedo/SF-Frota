@@ -7,6 +7,8 @@ export interface DriverQueueItem {
   payload: Driver;
   synced: boolean;
   createdAt: number;
+  retryCount: number; // ✅ controle de retentativas
+  lastError?: string;
 }
 
 export interface VehicleQueueItem {
@@ -16,6 +18,8 @@ export interface VehicleQueueItem {
   payload: Vehicle;
   synced: boolean;
   createdAt: number;
+  retryCount: number;
+  lastError?: string;
 }
 
 export interface TripQueueItem {
@@ -25,6 +29,8 @@ export interface TripQueueItem {
   payload: Trip;
   synced: boolean;
   createdAt: number;
+  retryCount: number;
+  lastError?: string;
 }
 
 export interface SettingsQueueItem {
@@ -34,12 +40,16 @@ export interface SettingsQueueItem {
   payload: Settings;
   synced: boolean;
   createdAt: number;
+  retryCount: number;
+  lastError?: string;
 }
+
 export type SyncQueueItem =
   | DriverQueueItem
   | VehicleQueueItem
   | TripQueueItem
   | SettingsQueueItem;
+
 export interface RoutePoint {
   lat: number;
   lng: number;
@@ -93,12 +103,12 @@ class AppDatabase extends Dexie {
 
   constructor() {
     super("sf-frota-db");
-    this.version(8).stores({
+    this.version(9).stores({
       vehicles: "id, plate, status",
       trips: "id, vehicleId, status",
       drivers: "id, name, registration",
       settings: "id",
-      syncQueue: "id,synced,entity",
+      syncQueue: "id,synced,entity,retryCount",
       sessions: "id",
     });
   }

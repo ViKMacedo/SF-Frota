@@ -14,6 +14,29 @@ import { TRACKING_STATUS, type TrackingStatus } from "@/constants/tracking";
 // Intervalo mínimo entre pontos gravados (ms)
 const MIN_POINT_INTERVAL_MS = 5000;
 
+const GPS_ERROR_MESSAGES: Record<
+  number,
+  { title: string; instructions: string }
+> = {
+  1: {
+    title: "Permissão de localização negada",
+    instructions:
+      "Para continuar, habilite a localização para este site nas configurações do seu navegador e recarregue a página.",
+  },
+  2: {
+    title: "Sinal GPS indisponível",
+    instructions:
+      "Não foi possível obter sua posição. Tente ir para um local com melhor sinal ou ao ar livre.",
+  },
+  3: {
+    title: "GPS demorou demais",
+    instructions:
+      "O GPS não respondeu a tempo. Verifique se a localização está ativada no dispositivo e tente novamente.",
+  },
+};
+
+type GpsError = { code: number; title: string; instructions: string } | null;
+
 export default function DriverRunningPage() {
   useAuthGuard("driver");
   const router = useRouter();
@@ -24,6 +47,7 @@ export default function DriverRunningPage() {
   const [statusLabel, setStatusLabel] = useState<TrackingStatus>(
     TRACKING_STATUS.STOPPED,
   );
+  const [gpsError, setGpsError] = useState<GpsError>(null);
 
   // Acelerômetro — ref para não precisar re-registrar o listener do GPS
   const accelRef = useRef<number>(0); // m/s² resultante
@@ -106,6 +130,9 @@ export default function DriverRunningPage() {
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
+        // Limpa erro de GPS se havia um anterior
+        setGpsError(null);
+
         const {
           latitude,
           longitude,
@@ -157,16 +184,12 @@ export default function DriverRunningPage() {
         });
       },
       (err) => {
-        const GPS_ERRORS: Record<number, string> = {
-          1: "Permissão negada — habilite a localização no navegador.",
-          2: "Posição indisponível — sinal GPS fraco ou ausente.",
-          3: "Tempo esgotado — o GPS demorou demais para responder.",
+        const info = GPS_ERROR_MESSAGES[err.code] ?? {
+          title: "Erro de GPS",
+          instructions: err.message,
         };
-        console.error(
-          "Erro GPS:",
-          GPS_ERRORS[err.code] ?? err.message,
-          `(code ${err.code})`,
-        );
+        console.error("Erro GPS:", info.title, `(code ${err.code})`);
+        setGpsError({ code: err.code, ...info });
       },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 },
     );
@@ -181,6 +204,60 @@ export default function DriverRunningPage() {
       : statusLabel === TRACKING_STATUS.FINISHING
         ? "bg-red-500/20 text-red-300"
         : "bg-green-500/20 text-green-300";
+
+  // ── Tela de erro de GPS ───────────────────────────────────────────────────
+  if (gpsError) {
+    return (
+      <MobileLayout>
+        <main className="min-h-screen bg-gradient-to-b from-indigo-950 to-indigo-900 text-white max-w-sm mx-auto flex flex-col p-6">
+          <button
+            onClick={() => router.back()}
+            className="text-sm text-zinc-400 mb-6 self-start"
+          >
+            ← Voltar
+          </button>
+
+          <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
+            {/* Ícone */}
+            <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-4xl">
+              📍
+            </div>
+
+            <div>
+              <h2 className="text-xl font-bold text-red-300 mb-2">
+                {gpsError.title}
+              </h2>
+              <p className="text-indigo-300 text-sm leading-relaxed">
+                {gpsError.instructions}
+              </p>
+            </div>
+
+            {/* Instrução específica para permissão negada */}
+            {gpsError.code === 1 && (
+              <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-left space-y-2">
+                <p className="text-xs font-semibold text-zinc-300 uppercase tracking-wide">
+                  Como habilitar:
+                </p>
+                <ol className="text-sm text-indigo-200 space-y-1 list-decimal list-inside">
+                  <li>Abra as configurações do navegador</li>
+                  <li>Acesse Privacidade → Permissões de localização</li>
+                  <li>Encontre este site e selecione &ldquo;Permitir&rdquo;</li>
+                  <li>Recarregue a página</li>
+                </ol>
+              </div>
+            )}
+
+            <Button
+              onClick={() => window.location.reload()}
+              className="w-full h-12 rounded-2xl text-base font-semibold"
+            >
+              Tentar novamente
+            </Button>
+          </div>
+        </main>
+      </MobileLayout>
+    );
+  }
 
   return (
     <MobileLayout>
