@@ -74,6 +74,13 @@ export default function TripsPage() {
 
     return `${hours}h ${minutes}min`;
   }
+  const ITEMS_PER_PAGE = 10;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(filteredTrips.length / ITEMS_PER_PAGE);
+  const paginatedTrips = filteredTrips.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE,
+  );
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -99,7 +106,10 @@ export default function TripsPage() {
       {/* Filtros */}
       <div className="flex gap-3 mb-6">
         <button
-          onClick={() => setFilter("all")}
+          onClick={() => {
+            setFilter("all");
+            setPage(1);
+          }}
           className={`px-4 py-2 rounded-xl text-sm transition ${
             filter === "all"
               ? "bg-indigo-600 text-white"
@@ -109,7 +119,10 @@ export default function TripsPage() {
           Todas
         </button>
         <button
-          onClick={() => setFilter("active")}
+          onClick={() => {
+            setFilter("active");
+            setPage(1);
+          }}
           className={`px-4 py-2 rounded-xl text-sm transition ${
             filter === "active"
               ? "bg-green-600 text-white"
@@ -119,7 +132,10 @@ export default function TripsPage() {
           Em andamento
         </button>
         <button
-          onClick={() => setFilter("finished")}
+          onClick={() => {
+            setFilter("finished");
+            setPage(1);
+          }}
           className={`px-4 py-2 rounded-xl text-sm transition ${
             filter === "finished"
               ? "bg-indigo-600 text-white"
@@ -131,7 +147,10 @@ export default function TripsPage() {
         <Input
           placeholder="Buscar motorista, veículo ou placa..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
         />
       </div>
 
@@ -150,7 +169,7 @@ export default function TripsPage() {
             "Status",
           ]}
         >
-          {filteredTrips.map((trip) => (
+          {paginatedTrips.map((trip) => (
             <TableRow
               key={trip.id}
               onClick={() => setSelectedTrip(trip)}
@@ -196,6 +215,57 @@ export default function TripsPage() {
             </TableRow>
           )}
         </Table>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-zinc-800">
+          <p className="text-sm text-zinc-500">
+            Mostrando{" "}
+            {filteredTrips.length === 0 ? 0 : (page - 1) * ITEMS_PER_PAGE + 1}
+            {" - "}
+            {Math.min(page * ITEMS_PER_PAGE, filteredTrips.length)}
+            {" de "}
+            {filteredTrips.length}
+            {" utilizações"}
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="
+        px-4 py-2
+        rounded-xl
+        bg-zinc-800
+        text-zinc-300
+        hover:bg-zinc-700
+        disabled:opacity-40
+        disabled:cursor-not-allowed
+        transition
+      "
+            >
+              ←
+            </button>
+
+            <span className="px-4 py-2 text-sm font-medium text-zinc-400">
+              Página {page} de {Math.max(1, totalPages)}
+            </span>
+
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="
+        px-4 py-2
+        rounded-xl
+        bg-indigo-600
+        text-white
+        hover:bg-indigo-500
+        disabled:opacity-40
+        disabled:cursor-not-allowed
+        transition
+      "
+            >
+              →
+            </button>
+          </div>
+        </div>
         <TripDrawer
           trip={selectedTrip}
           open={!!selectedTrip}

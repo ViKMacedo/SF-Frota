@@ -37,11 +37,10 @@ export async function getReportsData() {
     },
     tripsPerDriver,
     kmPerVehicle,
-    recentTrips: trips
-      .sort(
-        (a, b) =>
-          new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
-      )
-      .slice(0, 10),
+    trips: [...trips].sort(
+      (a, b) =>
+        new Date(b.startedAt).getTime() -
+        new Date(a.startedAt).getTime(),
+    ),
   };
 }

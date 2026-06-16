@@ -89,7 +89,16 @@ export default function DriversPage() {
     setOpen(true);
     setOpenMenuId(null);
   }
-
+  const ITEMS_PER_PAGE = 10;
+  const [page, setPage] = useState(1);
+  const filteredDrivers = drivers.filter(
+    (d) => showInactive || d.status !== "Afastado",
+  );
+  const totalPages = Math.ceil(filteredDrivers.length / ITEMS_PER_PAGE);
+  const paginatedDrivers = filteredDrivers.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE,
+  );
   return (
     <div>
       {/* Header */}
@@ -121,50 +130,95 @@ export default function DriversPage() {
         <Table
           headers={["Nome", "Matrícula", "Perfil", "CNH", "Status", "Ações"]}
         >
-          {drivers
-            .filter((d) => showInactive || d.status !== "Afastado")
-            .map((driver) => (
-              <TableRow key={driver.id}>
-                <TableCell className="font-medium">{driver.name}</TableCell>
-                <TableCell>{driver.registration}</TableCell>
-                <TableCell>
-                  {driver.role === "admin" ? "Administrador" : "Motorista"}
-                </TableCell>
-                <TableCell>{driver.license}</TableCell>
-                <TableCell>
-                  <StatusBadge
-                    status={
-                      driver.status === "Ativo"
-                        ? "active"
-                        : driver.status === "Férias"
-                          ? "maintenance"
-                          : "inactive"
+          {paginatedDrivers.map((driver) => (
+            <TableRow key={driver.id}>
+              <TableCell className="font-medium">{driver.name}</TableCell>
+              <TableCell>{driver.registration}</TableCell>
+              <TableCell>
+                {driver.role === "admin" ? "Administrador" : "Motorista"}
+              </TableCell>
+              <TableCell>{driver.license}</TableCell>
+              <TableCell>
+                <StatusBadge
+                  status={
+                    driver.status === "Ativo"
+                      ? "active"
+                      : driver.status === "Férias"
+                        ? "maintenance"
+                        : "inactive"
+                  }
+                  label={driver.status}
+                />
+              </TableCell>
+              <TableCell>
+                <ActionMenu
+                  isOpen={openMenuId === driver.id}
+                  onToggle={() =>
+                    setOpenMenuId(
+                      openMenuId === driver.id ? null : (driver.id ?? null),
+                    )
+                  }
+                  onEdit={() => handleEditDriver(driver)}
+                  onDelete={async () => {
+                    if (!driver.id) {
+                      return;
                     }
-                    label={driver.status}
-                  />
-                </TableCell>
-                <TableCell>
-                  <ActionMenu
-                    isOpen={openMenuId === driver.id}
-                    onToggle={() =>
-                      setOpenMenuId(
-                        openMenuId === driver.id ? null : (driver.id ?? null),
-                      )
-                    }
-                    onEdit={() => handleEditDriver(driver)}
-                    onDelete={async () => {
-                      if (!driver.id) {
-                        return;
-                      }
-                      await deleteDriver(driver.id);
-                      await loadDrivers();
-                      setOpenMenuId(null);
-                    }}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
+                    await deleteDriver(driver.id);
+                    await loadDrivers();
+                    setOpenMenuId(null);
+                  }}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
         </Table>
+        <div className="flex items-center justify-between mt-6">
+          <p className="text-sm text-zinc-500">
+            Mostrando{" "}
+            {Math.min((page - 1) * ITEMS_PER_PAGE + 1, filteredDrivers.length)}
+            {" - "}
+            {Math.min(page * ITEMS_PER_PAGE, filteredDrivers.length)}
+            {" de "}
+            {filteredDrivers.length}
+            {" motoristas"}
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="
+        px-4 py-2 rounded-xl
+        bg-zinc-800 text-zinc-300
+        hover:bg-zinc-700
+        disabled:opacity-40
+        disabled:cursor-not-allowed
+        transition
+      "
+            >
+              ←
+            </button>
+
+            <span className="px-4 py-2 text-sm font-medium text-zinc-400">
+              Página {page} de {totalPages || 1}
+            </span>
+
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="
+        px-4 py-2 rounded-xl
+        bg-indigo-600 text-white
+        hover:bg-indigo-500
+        disabled:opacity-40
+        disabled:cursor-not-allowed
+        transition
+      "
+            >
+              →
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Modal */}

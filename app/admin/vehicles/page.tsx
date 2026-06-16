@@ -125,7 +125,16 @@ export default function VehiclesPage() {
     setQrCode(qr);
     setOpenMenuId(null);
   }
-
+  const ITEMS_PER_PAGE = 10;
+  const [page, setPage] = useState(1);
+  const filteredVehicles = vehicles.filter(
+    (v) => showInactive || v.status !== "Inativo",
+  );
+  const totalPages = Math.ceil(filteredVehicles.length / ITEMS_PER_PAGE);
+  const paginatedVehicles = filteredVehicles.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE,
+  );
   return (
     <div>
       {/* Header */}
@@ -142,7 +151,10 @@ export default function VehiclesPage() {
       {/* Toggle inativos */}
       <div className="flex items-center gap-2 mb-4">
         <button
-          onClick={() => setShowInactive((v) => !v)}
+          onClick={() => {
+            setShowInactive((v) => !v);
+            setPage(1);
+          }}
           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showInactive ? "bg-indigo-600" : "bg-zinc-300"}`}
         >
           <span
@@ -155,50 +167,48 @@ export default function VehiclesPage() {
       {/* Table */}
       <div className="overflow-x-auto no-scrollbar">
         <Table headers={["Modelo", "Placa", "Tipo", "KM", "Status", "Ações"]}>
-          {vehicles
-            .filter((v) => showInactive || v.status !== "Inativo")
-            .map((vehicle) => (
-              <TableRow key={vehicle.id}>
-                <TableCell className="font-medium">{vehicle.model}</TableCell>
-                <TableCell>{vehicle.plate}</TableCell>
-                <TableCell>{vehicle.type}</TableCell>
-                <TableCell>{vehicle.km} km</TableCell>
-                <TableCell>
-                  <StatusBadge
-                    status={
-                      vehicle.status === "Em uso"
-                        ? "active"
-                        : vehicle.status === "Em manutenção"
-                          ? "maintenance"
-                          : vehicle.status === "Disponível"
-                            ? "available"
-                            : "inactive"
+          {paginatedVehicles.map((vehicle) => (
+            <TableRow key={vehicle.id}>
+              <TableCell className="font-medium">{vehicle.model}</TableCell>
+              <TableCell>{vehicle.plate}</TableCell>
+              <TableCell>{vehicle.type}</TableCell>
+              <TableCell>{vehicle.km} km</TableCell>
+              <TableCell>
+                <StatusBadge
+                  status={
+                    vehicle.status === "Em uso"
+                      ? "active"
+                      : vehicle.status === "Em manutenção"
+                        ? "maintenance"
+                        : vehicle.status === "Disponível"
+                          ? "available"
+                          : "inactive"
+                  }
+                />
+              </TableCell>
+              <TableCell>
+                <ActionMenu
+                  isOpen={openMenuId === vehicle.id}
+                  onToggle={() =>
+                    setOpenMenuId(
+                      openMenuId === vehicle.id ? null : (vehicle.id ?? null),
+                    )
+                  }
+                  onEdit={() => handleEditVehicle(vehicle)}
+                  onDelete={async () => {
+                    if (!vehicle.id) {
+                      return;
                     }
-                  />
-                </TableCell>
-                <TableCell>
-                  <ActionMenu
-                    isOpen={openMenuId === vehicle.id}
-                    onToggle={() =>
-                      setOpenMenuId(
-                        openMenuId === vehicle.id ? null : (vehicle.id ?? null),
-                      )
-                    }
-                    onEdit={() => handleEditVehicle(vehicle)}
-                    onDelete={async () => {
-                      if (!vehicle.id) {
-                        return;
-                      }
 
-                      await deleteVehicle(vehicle.id);
-                      await loadVehicles();
-                      setOpenMenuId(null);
-                    }}
-                    onQr={() => handleOpenQr(vehicle)}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
+                    await deleteVehicle(vehicle.id);
+                    await loadVehicles();
+                    setOpenMenuId(null);
+                  }}
+                  onQr={() => handleOpenQr(vehicle)}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
         </Table>
       </div>
 
@@ -315,6 +325,49 @@ export default function VehiclesPage() {
           </Button>
         </div>
       </Modal>
+      <div className="flex items-center justify-between mt-6">
+        <p className="text-sm text-zinc-500">
+          Mostrando{" "}
+          {filteredVehicles.length === 0 ? 0 : (page - 1) * ITEMS_PER_PAGE + 1}–
+          {Math.min(page * ITEMS_PER_PAGE, filteredVehicles.length)} de{" "}
+          {filteredVehicles.length} veículos
+        </p>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+            className="
+        rounded-xl
+        border-zinc-700
+        bg-zinc-900
+        hover:bg-zinc-800
+      "
+          >
+            ←
+          </Button>
+
+          <div className="px-4 text-sm font-medium text-zinc-400">
+            {page} / {Math.max(totalPages, 1)}
+          </div>
+
+          <Button
+            variant="outline"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+            className="
+        rounded-xl
+        border-zinc-700
+        bg-zinc-900
+        hover:bg-indigo-600
+        hover:border-indigo-600
+      "
+          >
+            →
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
