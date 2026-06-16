@@ -20,6 +20,11 @@ export async function updateVehicleStatus(id: string, status: VehicleStatus) {
   });
 }
 export async function createVehicle(vehicle: Omit<Vehicle, "id">) {
+  const existing = await getVehicleByPlate(vehicle.plate);
+  if (existing) {
+    throw new Error(`Já existe um veículo com a placa ${vehicle.plate}.`);
+  }
+
   const newVehicle: Vehicle = {
     ...vehicle,
     id: crypto.randomUUID(),
@@ -36,11 +41,7 @@ export async function updateVehicle(id: string, vehicle: Partial<Vehicle>) {
   }
 }
 export async function deleteVehicle(id: string) {
-  const vehicle = await db.vehicles.get(id);
-  if (!vehicle) return;
-
-  await addVehicleToQueue("delete", vehicle);
-  await db.vehicles.delete(id);
+  await updateVehicle(id, { status: "Inativo" });
 }
 export type VehicleWithUsage = Vehicle & {
   lastDriver: string;

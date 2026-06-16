@@ -1,6 +1,13 @@
 "use client";
 
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  TileLayer,
+  useMap,
+} from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import { LatLngExpression, divIcon } from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -156,49 +163,72 @@ export function TrackingMap({ trips, selectedTrip, onSelectTrip }: Props) {
               (trip): trip is TrackingTrip =>
                 trip.lat !== undefined && trip.lng !== undefined,
             )
-            .map((trip) => (
-              <Marker
-                key={trip.id}
-                position={[trip.lat, trip.lng]}
-                icon={createVehicleIcon(
-                  trip.driverName,
-                  trip.vehicleModel,
-                  trip.statusLabel,
-                  trip.speed,
-                )}
-                eventHandlers={{
-                  click: () => onSelectTrip(trip),
-                }}
-              >
-                <Popup>
-                  <div className="space-y-2 min-w-[180px]">
-                    <h2 className="font-bold text-base">{trip.vehicleModel}</h2>
-                    <div className="space-y-1 text-sm">
-                      <p>
-                        <span className="font-semibold">Motorista:</span>{" "}
-                        {trip.driverName}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Status:</span>{" "}
-                        {trip.statusLabel}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Velocidade:</span>{" "}
-                        {trip.speed} km/h
-                      </p>
-                      <p>
-                        <span className="font-semibold">KM:</span>{" "}
-                        {trip.distance || 0} km
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                      LIVE
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+            .map((trip) => {
+              const routePoints: [number, number][] = (trip.route ?? []).map(
+                (p) => [p.lat, p.lng],
+              );
+              const polylineColor =
+                trip.statusLabel === "Parado"
+                  ? "#eab308"
+                  : trip.statusLabel === "Finalizando"
+                    ? "#ef4444"
+                    : "#22c55e";
+
+              return (
+                <span key={trip.id}>
+                  {routePoints.length > 1 && (
+                    <Polyline
+                      positions={routePoints}
+                      pathOptions={{
+                        color: polylineColor,
+                        weight: 3,
+                        opacity: 0.7,
+                      }}
+                    />
+                  )}
+                  <Marker
+                    position={[trip.lat, trip.lng]}
+                    icon={createVehicleIcon(
+                      trip.driverName,
+                      trip.vehicleModel,
+                      trip.statusLabel,
+                      trip.speed,
+                    )}
+                    eventHandlers={{ click: () => onSelectTrip(trip) }}
+                  >
+                    <Popup>
+                      <div className="space-y-2 min-w-[180px]">
+                        <h2 className="font-bold text-base">
+                          {trip.vehicleModel}
+                        </h2>
+                        <div className="space-y-1 text-sm">
+                          <p>
+                            <span className="font-semibold">Motorista:</span>{" "}
+                            {trip.driverName}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Status:</span>{" "}
+                            {trip.statusLabel}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Velocidade:</span>{" "}
+                            {trip.speed} km/h
+                          </p>
+                          <p>
+                            <span className="font-semibold">Pontos GPS:</span>{" "}
+                            {trip.route?.length ?? 0}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
+                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                          LIVE
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                </span>
+              );
+            })}
         </MarkerClusterGroup>
       </MapContainer>
     </div>

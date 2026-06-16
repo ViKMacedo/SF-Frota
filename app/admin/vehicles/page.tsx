@@ -25,6 +25,7 @@ import {
 } from "@/services/vehicleService";
 
 export default function VehiclesPage() {
+  const [showInactive, setShowInactive] = useState(false);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export default function VehiclesPage() {
   const [status, setStatus] = useState<
     "Disponível" | "Em uso" | "Em manutenção" | "Inativo"
   >("Disponível");
+  const [formError, setFormError] = useState("");
   useEffect(() => {
     loadVehicles();
   }, []);
@@ -52,9 +54,19 @@ export default function VehiclesPage() {
 
   async function handleCreateVehicle() {
     const plateRegex = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/;
-    if (!model || !plateRegex.test(plate) || !km) {
+    if (!model) {
+      setFormError("Informe o modelo do veículo.");
       return;
     }
+    if (!plateRegex.test(plate)) {
+      setFormError("Placa inválida. Use o formato ABC1234 ou ABC1D23.");
+      return;
+    }
+    if (!km) {
+      setFormError("Informe o KM atual.");
+      return;
+    }
+    setFormError("");
 
     const vehicleData = {
       model,
@@ -64,10 +76,17 @@ export default function VehiclesPage() {
       status,
     };
 
-    if (editingId !== null) {
-      await updateVehicle(editingId, vehicleData);
-    } else {
-      await createVehicle(vehicleData);
+    try {
+      if (editingId !== null) {
+        await updateVehicle(editingId, vehicleData);
+      } else {
+        await createVehicle(vehicleData);
+      }
+    } catch (err) {
+      setFormError(
+        err instanceof Error ? err.message : "Erro ao salvar veículo.",
+      );
+      return;
     }
 
     await loadVehicles();
@@ -81,6 +100,7 @@ export default function VehiclesPage() {
     setType("Carro");
     setStatus("Disponível");
     setEditingId(null);
+    setFormError("");
     setOpen(false);
   }
 
@@ -119,51 +139,66 @@ export default function VehiclesPage() {
         </Button>
       </div>
 
+      {/* Toggle inativos */}
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          onClick={() => setShowInactive((v) => !v)}
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showInactive ? "bg-indigo-600" : "bg-zinc-300"}`}
+        >
+          <span
+            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${showInactive ? "translate-x-4" : "translate-x-1"}`}
+          />
+        </button>
+        <span className="text-sm text-zinc-500">Mostrar inativos</span>
+      </div>
+
       {/* Table */}
       <div className="overflow-x-auto no-scrollbar">
         <Table headers={["Modelo", "Placa", "Tipo", "KM", "Status", "Ações"]}>
-          {vehicles.map((vehicle) => (
-            <TableRow key={vehicle.id}>
-              <TableCell className="font-medium">{vehicle.model}</TableCell>
-              <TableCell>{vehicle.plate}</TableCell>
-              <TableCell>{vehicle.type}</TableCell>
-              <TableCell>{vehicle.km} km</TableCell>
-              <TableCell>
-                <StatusBadge
-                  status={
-                    vehicle.status === "Em uso"
-                      ? "active"
-                      : vehicle.status === "Em manutenção"
-                        ? "maintenance"
-                        : vehicle.status === "Disponível"
-                          ? "available"
-                          : "inactive"
-                  }
-                />
-              </TableCell>
-              <TableCell>
-                <ActionMenu
-                  isOpen={openMenuId === vehicle.id}
-                  onToggle={() =>
-                    setOpenMenuId(
-                      openMenuId === vehicle.id ? null : (vehicle.id ?? null),
-                    )
-                  }
-                  onEdit={() => handleEditVehicle(vehicle)}
-                  onDelete={async () => {
-                    if (!vehicle.id) {
-                      return;
+          {vehicles
+            .filter((v) => showInactive || v.status !== "Inativo")
+            .map((vehicle) => (
+              <TableRow key={vehicle.id}>
+                <TableCell className="font-medium">{vehicle.model}</TableCell>
+                <TableCell>{vehicle.plate}</TableCell>
+                <TableCell>{vehicle.type}</TableCell>
+                <TableCell>{vehicle.km} km</TableCell>
+                <TableCell>
+                  <StatusBadge
+                    status={
+                      vehicle.status === "Em uso"
+                        ? "active"
+                        : vehicle.status === "Em manutenção"
+                          ? "maintenance"
+                          : vehicle.status === "Disponível"
+                            ? "available"
+                            : "inactive"
                     }
+                  />
+                </TableCell>
+                <TableCell>
+                  <ActionMenu
+                    isOpen={openMenuId === vehicle.id}
+                    onToggle={() =>
+                      setOpenMenuId(
+                        openMenuId === vehicle.id ? null : (vehicle.id ?? null),
+                      )
+                    }
+                    onEdit={() => handleEditVehicle(vehicle)}
+                    onDelete={async () => {
+                      if (!vehicle.id) {
+                        return;
+                      }
 
-                    await deleteVehicle(vehicle.id);
-                    await loadVehicles();
-                    setOpenMenuId(null);
-                  }}
-                  onQr={() => handleOpenQr(vehicle)}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
+                      await deleteVehicle(vehicle.id);
+                      await loadVehicles();
+                      setOpenMenuId(null);
+                    }}
+                    onQr={() => handleOpenQr(vehicle)}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
         </Table>
       </div>
 
@@ -274,6 +309,7 @@ export default function VehiclesPage() {
               <option value="Inativo">Inativo</option>
             </FormSelect>
           </div>
+          {formError && <p className="text-sm text-red-500">{formError}</p>}
           <Button className="w-full" onClick={handleCreateVehicle}>
             {editingId !== null ? "Salvar alterações" : "Salvar veículo"}
           </Button>

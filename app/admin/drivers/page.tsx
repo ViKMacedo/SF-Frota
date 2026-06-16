@@ -24,6 +24,7 @@ import {
 
 export default function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [showInactive, setShowInactive] = useState(false);
   const [pin, setPin] = useState("");
   const [role, setRole] = useState<"admin" | "driver">("driver");
   const [open, setOpen] = useState(false);
@@ -102,52 +103,67 @@ export default function DriversPage() {
         </Button>
       </div>
 
+      {/* Toggle inativos */}
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          onClick={() => setShowInactive((v) => !v)}
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showInactive ? "bg-indigo-600" : "bg-zinc-300"}`}
+        >
+          <span
+            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${showInactive ? "translate-x-4" : "translate-x-1"}`}
+          />
+        </button>
+        <span className="text-sm text-zinc-500">Mostrar afastados</span>
+      </div>
+
       {/* Table */}
       <div className="overflow-x-auto no-scrollbar">
         <Table
           headers={["Nome", "Matrícula", "Perfil", "CNH", "Status", "Ações"]}
         >
-          {drivers.map((driver) => (
-            <TableRow key={driver.id}>
-              <TableCell className="font-medium">{driver.name}</TableCell>
-              <TableCell>{driver.registration}</TableCell>
-              <TableCell>
-                {driver.role === "admin" ? "Administrador" : "Motorista"}
-              </TableCell>
-              <TableCell>{driver.license}</TableCell>
-              <TableCell>
-                <StatusBadge
-                  status={
-                    driver.status === "Ativo"
-                      ? "active"
-                      : driver.status === "Férias"
-                        ? "maintenance"
-                        : "inactive"
-                  }
-                  label={driver.status}
-                />
-              </TableCell>
-              <TableCell>
-                <ActionMenu
-                  isOpen={openMenuId === driver.id}
-                  onToggle={() =>
-                    setOpenMenuId(
-                      openMenuId === driver.id ? null : (driver.id ?? null),
-                    )
-                  }
-                  onEdit={() => handleEditDriver(driver)}
-                  onDelete={async () => {
-                    if (!driver.id) {
-                      return;
+          {drivers
+            .filter((d) => showInactive || d.status !== "Afastado")
+            .map((driver) => (
+              <TableRow key={driver.id}>
+                <TableCell className="font-medium">{driver.name}</TableCell>
+                <TableCell>{driver.registration}</TableCell>
+                <TableCell>
+                  {driver.role === "admin" ? "Administrador" : "Motorista"}
+                </TableCell>
+                <TableCell>{driver.license}</TableCell>
+                <TableCell>
+                  <StatusBadge
+                    status={
+                      driver.status === "Ativo"
+                        ? "active"
+                        : driver.status === "Férias"
+                          ? "maintenance"
+                          : "inactive"
                     }
-                    await deleteDriver(driver.id);
-                    await loadDrivers();
-                    setOpenMenuId(null);
-                  }}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
+                    label={driver.status}
+                  />
+                </TableCell>
+                <TableCell>
+                  <ActionMenu
+                    isOpen={openMenuId === driver.id}
+                    onToggle={() =>
+                      setOpenMenuId(
+                        openMenuId === driver.id ? null : (driver.id ?? null),
+                      )
+                    }
+                    onEdit={() => handleEditDriver(driver)}
+                    onDelete={async () => {
+                      if (!driver.id) {
+                        return;
+                      }
+                      await deleteDriver(driver.id);
+                      await loadDrivers();
+                      setOpenMenuId(null);
+                    }}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
         </Table>
       </div>
 

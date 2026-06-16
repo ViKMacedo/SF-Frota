@@ -32,10 +32,16 @@ const DELETE_FLAG_BY_ENTITY: Record<
 };
 
 export async function POST(req: NextRequest) {
-    const { token, items } = (await req.json()) as {
-        token: string;
-        items: SyncQueueItem[];
-    };
+    let token: string;
+    let items: SyncQueueItem[];
+
+    try {
+        const body = await req.json();
+        token = body.token;
+        items = body.items;
+    } catch {
+        return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+    }
 
     // 1. Valida o token emitido no login
     let role: string | undefined;
@@ -59,7 +65,12 @@ export async function POST(req: NextRequest) {
     );
 
     // 2.1 Busca as configurações de exclusão (allowDeleteDrivers/Vehicles/Trips)
-    const settings = await getDeleteSettings();
+    let settings = DEFAULT_DELETE_SETTINGS;
+    try {
+        settings = await getDeleteSettings();
+    } catch {
+        console.warn("[Sync] Falha ao buscar settings, usando defaults.");
+    }
 
     const results: { id: string; success: boolean; error?: string }[] = [];
 
@@ -86,13 +97,20 @@ export async function POST(req: NextRequest) {
             await processItem(item);
             results.push({ id: item.id, success: true });
         } catch (error) {
-            results.push({ id: item.id, success: false, error: String(error) });
+            const message = error instanceof Error
+                ? error.message
+                : typeof error === "object" &&
+                        error !== null &&
+                        "message" in error
+                ? String((error as { message: unknown }).message)
+                : String(error);
+            console.error(`[Sync backend] Item ${item.id} falhou:`, message);
+            results.push({ id: item.id, success: false, error: message });
         }
     }
 
     return NextResponse.json({ results });
 }
-
 // ─── Configurações de exclusão ─────────────────────────────────────────────
 
 const DEFAULT_DELETE_SETTINGS: Pick<
@@ -198,20 +216,35 @@ async function processVehicle(item: VehicleQueueItem) {
     }
 
     const { payload } = item;
-    const { error } = await supabaseAdmin.from("vehicles").upsert(
-        {
-            id: payload.id,
-            model: payload.model,
-            plate: payload.plate,
-            type: payload.type,
-            status: payload.status,
-            km: payload.km,
-            last_driver: payload.lastDriver,
-            last_used_at: payload.lastUsedAt,
-        },
-        { onConflict: "id" },
-    );
-    if (error) throw error;
+    const upsertData = {
+        id: payload.id,
+        model: payload.model,
+        plate: payload.plate,
+        type: payload.type,
+        status: payload.status,
+        km: payload.km,
+        last_driver: payload.lastDriver,
+        last_used_at: payload.lastUsedAt,
+    };
+
+    // Tenta upsert por id primeiro
+    const { error } = await supabaseAdmin
+        .from("vehicles")
+        .upsert(upsertData, { onConflict: "id" });
+
+    if (!error) return;
+
+    // Se falhou por conflito de placa, atualiza o registro existente com aquela placa
+    if (error.code === "23505" && error.message.includes("plate")) {
+        const { error: updateError } = await supabaseAdmin
+            .from("vehicles")
+            .update(upsertData)
+            .eq("plate", payload.plate);
+        if (updateError) throw updateError;
+        return;
+    }
+
+    throw error;
 }
 
 async function processTrip(item: TripQueueItem) {
@@ -245,6 +278,7 @@ async function processTrip(item: TripQueueItem) {
             lng: payload.lng,
             speed: payload.speed,
             status_label: payload.statusLabel,
+            route: payload.route ?? [],
         },
         { onConflict: "id" },
     );

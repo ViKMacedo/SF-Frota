@@ -26,11 +26,7 @@ export async function updateDriver(id: string, driver: Partial<Driver>) {
 }
 
 export async function deleteDriver(id: string) {
-  const driver = await db.drivers.get(id);
-  if (!driver) return;
-
-  await db.drivers.delete(id);
-  await addDriverToQueue("delete", driver);
+  await updateDriver(id, { status: "Afastado" });
 }
 
 export async function getDriverById(id: string) {

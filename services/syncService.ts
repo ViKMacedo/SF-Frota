@@ -31,7 +31,7 @@ export async function syncPendingItems() {
   }
 
   const { results } = await res.json();
-
+  console.log("[Sync] resposta do backend:", JSON.stringify(results));
   for (
     const result of results as {
       id: string;
@@ -46,6 +46,7 @@ export async function syncPendingItems() {
         `[Sync] Item ${result.id} falhou`,
         result,
       );
+      console.log("[Sync] status:", res.status);
     }
   }
 }

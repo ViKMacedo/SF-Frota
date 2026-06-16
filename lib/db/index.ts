@@ -40,6 +40,16 @@ export type SyncQueueItem =
   | VehicleQueueItem
   | TripQueueItem
   | SettingsQueueItem;
+export interface RoutePoint {
+  lat: number;
+  lng: number;
+  speed: number; // km/h
+  heading?: number; // graus 0-360
+  accuracy?: number; // metros
+  ts: number; // timestamp ms
+  accel?: number; // m/s² resultante (acelerômetro)
+}
+
 export interface Trip {
   id: string;
   vehicleId: string;
@@ -59,6 +69,7 @@ export interface Trip {
   lng?: number;
   speed?: number;
   statusLabel?: string;
+  route?: RoutePoint[]; // histórico de pontos GPS
 }
 
 export interface Vehicle {
@@ -82,7 +93,7 @@ class AppDatabase extends Dexie {
 
   constructor() {
     super("sf-frota-db");
-    this.version(7).stores({
+    this.version(8).stores({
       vehicles: "id, plate, status",
       trips: "id, vehicleId, status",
       drivers: "id, name, registration",
