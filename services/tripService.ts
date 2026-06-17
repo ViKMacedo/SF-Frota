@@ -14,11 +14,24 @@ export async function createTrip(trip: Omit<Trip, "id" | "startKm">) {
     startKm: vehicle.km,
   };
 
-  await db.trips.add(newTrip);
-  await addTripToQueue("create", newTrip);
-  await db.vehicles.update(trip.vehicleId, {
-    status: "Em uso",
+  let updatedVehicle: Vehicle | undefined;
+
+  await db.transaction("rw", db.trips, db.vehicles, async () => {
+    await db.trips.add(newTrip);
+
+    await db.vehicles.update(trip.vehicleId, {
+      status: "Em uso",
+    });
+
+    updatedVehicle = await db.vehicles.get(trip.vehicleId);
   });
+
+  await addTripToQueue("create", newTrip);
+
+  if (updatedVehicle) {
+    await addVehicleToQueue("update", updatedVehicle);
+  }
+
   return newTrip.id;
 }
 
@@ -34,8 +47,6 @@ export async function finishTrip(id: string, data: Partial<Trip>) {
   let updatedTrip: Trip | undefined;
   let updatedVehicle: Vehicle | undefined;
 
-  // Transação garante atomicidade — se qualquer passo falhar,
-  // nenhuma alteração é salva no Dexie
   await db.transaction("rw", db.trips, db.vehicles, async () => {
     const trip = await db.trips.get(id);
     if (!trip) return;

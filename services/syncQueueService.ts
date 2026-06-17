@@ -94,12 +94,3 @@ export async function incrementRetry(id: string, error?: string) {
 export async function removeFromQueue(id: string) {
   await db.syncQueue.delete(id);
 }
-
-export async function clearSyncedQueue() {
-  const syncedItems = (await db.syncQueue.toArray()).filter(
-    (item) => item.synced,
-  );
-  for (const item of syncedItems) {
-    await db.syncQueue.delete(item.id);
-  }
-}
