@@ -10,12 +10,11 @@ export async function getActiveTrips(): Promise<TrackingTrip[]> {
 
     let statusLabel: string = TRACKING_STATUS.STOPPED;
     if (speed > 5) statusLabel = TRACKING_STATUS.EN_ROUTE;
-    if (speed > 70) statusLabel = TRACKING_STATUS.FINISHING;
 
     return {
       ...trip,
-      lat: trip.lat ?? -24.021347,
-      lng: trip.lng ?? -48.362951,
+      lat: trip.lat,
+      lng: trip.lng,
       speed,
       statusLabel,
     };

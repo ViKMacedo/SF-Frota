@@ -1,7 +1,6 @@
 export const TRACKING_STATUS = {
   STOPPED: "Parado",
   EN_ROUTE: "Em rota",
-  FINISHING: "Finalizando",
 } as const;
 
 export type TrackingStatus =

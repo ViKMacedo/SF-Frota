@@ -79,7 +79,7 @@ export default function LoginPage() {
   }
 
   return (
-    <MobileLayout>
+    <MobileLayout className="bg-zinc-950">
       <Card className="p-8 rounded-3xl shadow-2xl border-zinc-800 bg-zinc-900 text-white">
         <div className="mb-8">
           <h1 className="text-4xl font-bold tracking-tight">SF Frota</h1>

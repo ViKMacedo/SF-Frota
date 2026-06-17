@@ -8,7 +8,6 @@ import {
   TileLayer,
   useMap,
 } from "react-leaflet";
-import MarkerClusterGroup from "react-leaflet-cluster";
 import { LatLngExpression, divIcon } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect } from "react";
@@ -99,7 +98,7 @@ function createVehicleIcon(
       </div>
     `,
     className: "",
-    iconSize: [180, 120],
+    iconSize: [120, 80],
   });
 }
 function FitBounds({ trips }: { trips: TrackingTrip[] }) {
@@ -130,13 +129,14 @@ function FocusVehicle({ trip }: { trip: TrackingTrip | null }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!trip) return;
+    if (!trip || trip.lat === undefined || trip.lng === undefined) {
+      return;
+    }
 
     map.flyTo([trip.lat, trip.lng], 16, {
       duration: 1.5,
     });
   }, [trip, map]);
-
   return null;
 }
 export function TrackingMap({ trips, selectedTrip, onSelectTrip }: Props) {
@@ -157,7 +157,7 @@ export function TrackingMap({ trips, selectedTrip, onSelectTrip }: Props) {
         />
         <FitBounds trips={trips} />
         <FocusVehicle trip={selectedTrip} />
-        <MarkerClusterGroup chunkedLoading>
+        <>
           {trips
             .filter(
               (trip): trip is TrackingTrip =>
@@ -187,7 +187,7 @@ export function TrackingMap({ trips, selectedTrip, onSelectTrip }: Props) {
                     />
                   )}
                   <Marker
-                    position={[trip.lat, trip.lng]}
+                    position={[trip.lat!, trip.lng!]}
                     icon={createVehicleIcon(
                       trip.driverName,
                       trip.vehicleModel,
@@ -229,7 +229,7 @@ export function TrackingMap({ trips, selectedTrip, onSelectTrip }: Props) {
                 </span>
               );
             })}
-        </MarkerClusterGroup>
+        </>
       </MapContainer>
     </div>
   );

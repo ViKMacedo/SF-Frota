@@ -6,11 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { clearSession, getSession } from "@/services/sessionService";
 
-type Props = {
-  children: ReactNode;
-};
-
-export default function DriverLayout({ children }: Props) {
+export default function DriverLayout({ children }: { children: ReactNode }) {
   useAuthGuard("driver");
 
   const router = useRouter();

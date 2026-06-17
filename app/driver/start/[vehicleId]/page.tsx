@@ -9,9 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 import { db, type Vehicle } from "@/lib/db";
-
 import { createTrip, getActiveTrip } from "@/services/tripService";
-import { getVehicleById, updateVehicleStatus } from "@/services/vehicleService";
+import { getVehicleById } from "@/services/vehicleService";
 
 export default function DriverStartPage({
   params,
@@ -19,46 +18,29 @@ export default function DriverStartPage({
   params: Promise<{ vehicleId: string }>;
 }) {
   const router = useRouter();
-
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
-  const [, setError] = useState("");
-
   const session = useLiveQuery(() => db.sessions.get("current"), []);
 
   useEffect(() => {
     async function loadVehicle() {
       const { vehicleId } = await params;
-
       const data = await getVehicleById(vehicleId);
-
       if (!data) {
         router.push("/driver/scan");
         return;
       }
-
       setVehicle(data);
     }
-
     loadVehicle();
   }, [params, router]);
 
   async function handleStart() {
     const activeTrip = await getActiveTrip();
-
     if (activeTrip) {
       router.push("/driver/running");
       return;
     }
-
-    if (!vehicle) {
-      setError("Veículo não encontrado");
-      return;
-    }
-
-    if (!session) {
-      setError("Motorista não encontrado");
-      return;
-    }
+    if (!vehicle || !session) return;
 
     await createTrip({
       vehicleId: vehicle.id!,
@@ -72,7 +54,6 @@ export default function DriverStartPage({
       lat: -24.021347,
       lng: -48.362951,
     });
-    await updateVehicleStatus(vehicle.id!, "Em uso");
 
     router.push("/driver/running");
   }
@@ -80,77 +61,63 @@ export default function DriverStartPage({
   if (!vehicle) {
     return (
       <MobileLayout>
-        {" "}
-        <div className="p-6 text-white">Carregando veículo... </div>{" "}
+        <p className="text-indigo-300 text-sm">Carregando veículo...</p>
       </MobileLayout>
     );
   }
 
   return (
     <MobileLayout>
-      {" "}
-      <main className="min-h-screen bg-gradient-to-b from-indigo-950 to-indigo-900 text-white max-w-sm mx-auto flex flex-col p-6">
-        {" "}
-        <div className="mb-10">
-          <button
-            onClick={() => router.back()}
-            className="text-sm text-zinc-400 mb-6"
-          >
-            ← Voltar{" "}
-          </button>
-          <h1 className="text-3xl font-bold text-white">Iniciar uso</h1>
-          <p>Motorista: {session?.name}</p>
-          <p className="text-zinc-300 mt-2">
-            Confirme o veículo para iniciar a utilização
-          </p>
-        </div>
-        <Card className="rounded-3xl p-5 border-white-200 shadow-sm mb-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center text-2xl">
-              🚗
-            </div>
+      <button
+        onClick={() => router.back()}
+        className="text-sm text-indigo-300 mb-8 self-start"
+      >
+        ← Voltar
+      </button>
 
-            <div>
-              <p className="text-sm text-zinc-500">Veículo em uso</p>
+      <h1 className="text-3xl font-bold text-white mb-2">Iniciar uso</h1>
+      <p className="text-indigo-300 text-sm mb-8">
+        Confirme o veículo para iniciar a utilização
+      </p>
 
-              <p>{vehicle.model}</p>
-
-              <p className="text-sm text-zinc-500">{vehicle.plate}</p>
-            </div>
+      <Card className="rounded-3xl p-5 border-indigo-800 bg-indigo-900/90 mb-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-700 flex items-center justify-center text-2xl">
+            🚗
           </div>
-        </Card>
-        <Card className="rounded-3xl p-5 border-white-200 shadow-sm mb-8">
-          <p className="text-sm text-zinc-500 mb-2">Odômetro atual</p>
-
-          <p className="text-4xl font-bold">
-            {vehicle.km.toLocaleString("pt-BR")}
-          </p>
-
-          <p className="text-sm text-zinc-500 mt-2">KM inicial da viagem</p>
-
-          <div className="mt-4 flex items-center gap-2 text-green-500">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            Será registrado automaticamente
+          <div>
+            <p className="text-xs text-indigo-200 mb-1">Veículo selecionado</p>
+            <p className="text-white font-semibold">{vehicle.model}</p>
+            <p className="text-xs text-indigo-300">{vehicle.plate}</p>
           </div>
-
-          <p>Último motorista: {vehicle.lastDriver ?? "—"}</p>
-
-          <p>
-            Última utilização:
-            {vehicle.lastUsedAt
-              ? new Date(vehicle.lastUsedAt).toLocaleString("pt-BR")
-              : " — "}
-          </p>
-        </Card>
-        <div className="mt-auto">
-          <Button
-            onClick={handleStart}
-            className="w-full h-12 rounded-2xl text-base font-semibold"
-          >
-            Confirmar veículo
-          </Button>
         </div>
-      </main>
+      </Card>
+
+      <Card className="rounded-3xl p-5 border-indigo-800 bg-indigo-900/90 mb-8">
+        <p className="text-xs text-indigo-300 mb-1">Odômetro atual</p>
+        <p className="text-4xl font-bold text-white">
+          {vehicle.km.toLocaleString("pt-BR")}
+        </p>
+        <p className="text-xs text-indigo-300 mt-1">KM inicial da viagem</p>
+        <div className="mt-3 flex items-center gap-2 text-green-400 text-xs">
+          <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+          Será registrado automaticamente
+        </div>
+        {vehicle.lastDriver && (
+          <p className="text-xs text-indigo-400 mt-2">
+            Último motorista: {vehicle.lastDriver}
+          </p>
+        )}
+      </Card>
+
+      <div className="mt-auto">
+        <Button
+          onClick={handleStart}
+          className="w-full h-12 rounded-2xl text-base font-semibold"
+        >
+          Confirmar e iniciar
+        </Button>
+      </div>
     </MobileLayout>
   );
 }

@@ -145,13 +145,8 @@ export default function DriverRunningPage() {
         const accel = accelRef.current;
 
         // ── Status label ──────────────────────────────────────────────────
-        let label: TrackingStatus = TRACKING_STATUS.STOPPED;
-        if (kmh > 70) {
-          label = TRACKING_STATUS.EN_ROUTE;
-        } else if (kmh > 5) {
-          label =
-            accel < -0.5 ? TRACKING_STATUS.FINISHING : TRACKING_STATUS.EN_ROUTE;
-        }
+        const label =
+          kmh > 5 ? TRACKING_STATUS.EN_ROUTE : TRACKING_STATUS.STOPPED;
 
         setSpeed(kmh);
         setStatusLabel(label);
@@ -201,9 +196,7 @@ export default function DriverRunningPage() {
   const statusColor =
     statusLabel === TRACKING_STATUS.STOPPED
       ? "bg-yellow-500/20 text-yellow-300"
-      : statusLabel === TRACKING_STATUS.FINISHING
-        ? "bg-red-500/20 text-red-300"
-        : "bg-green-500/20 text-green-300";
+      : "bg-green-500/20 text-green-300";
 
   // ── Tela de erro de GPS ───────────────────────────────────────────────────
   if (gpsError) {
