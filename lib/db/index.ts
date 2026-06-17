@@ -7,7 +7,7 @@ export interface DriverQueueItem {
   payload: Driver;
   synced: boolean;
   createdAt: number;
-  retryCount: number; // ✅ controle de retentativas
+  retryCount: number;
   lastError?: string;
 }
 
@@ -79,7 +79,7 @@ export interface Trip {
   lng?: number;
   speed?: number;
   statusLabel?: string;
-  route?: RoutePoint[]; // histórico de pontos GPS
+  route?: RoutePoint[];
 }
 
 export interface Vehicle {
@@ -103,12 +103,12 @@ class AppDatabase extends Dexie {
 
   constructor() {
     super("sf-frota-db");
-    this.version(9).stores({
+    this.version(8).stores({
       vehicles: "id, plate, status",
       trips: "id, vehicleId, status",
       drivers: "id, name, registration",
       settings: "id",
-      syncQueue: "id,synced,entity,retryCount",
+      syncQueue: "id,synced,entity",
       sessions: "id",
     });
   }
@@ -124,12 +124,13 @@ export type VehicleStatus =
 export interface Driver {
   id: string;
   name: string;
-  registration: string; // login
+  registration: string;
   pin: string;
   role: "admin" | "driver";
   license: "A" | "B" | "C" | "D" | "E" | "AB";
   status: "Ativo" | "Afastado" | "Férias";
 }
+
 export interface Settings {
   id: string;
   companyName: string;
@@ -141,6 +142,7 @@ export interface Settings {
   allowDeleteVehicles: boolean;
   allowDeleteTrips: boolean;
 }
+
 export interface Session {
   id: "current";
   userId: string;

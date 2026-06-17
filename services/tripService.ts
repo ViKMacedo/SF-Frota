@@ -1,4 +1,4 @@
-import { db, Trip } from "@/lib/db";
+import { db, Trip, Vehicle } from "@/lib/db";
 import { addTripToQueue, addVehicleToQueue } from "@/services/syncQueueService";
 
 export async function createTrip(trip: Omit<Trip, "id" | "startKm">) {
@@ -31,36 +31,32 @@ export async function getActiveTrip() {
 }
 
 export async function finishTrip(id: string, data: Partial<Trip>) {
-  const trip = await db.trips.get(id);
+  let updatedTrip: Trip | undefined;
+  let updatedVehicle: Vehicle | undefined;
 
-  if (!trip) {
-    return;
-  }
+  // Transação garante atomicidade — se qualquer passo falhar,
+  // nenhuma alteração é salva no Dexie
+  await db.transaction("rw", db.trips, db.vehicles, async () => {
+    const trip = await db.trips.get(id);
+    if (!trip) return;
 
-  await db.trips.update(id, {
-    ...data,
-    status: "Finalizada",
+    await db.trips.update(id, { ...data, status: "Finalizada" });
+    updatedTrip = await db.trips.get(id);
+
+    await db.vehicles.update(trip.vehicleId, {
+      status: "Disponível",
+      km: data.endKm,
+      lastDriver: trip.driverName,
+      lastUsedAt: new Date().toISOString(),
+    });
+    updatedVehicle = await db.vehicles.get(trip.vehicleId);
   });
 
-  const updatedTrip = await db.trips.get(id);
-
-  if (updatedTrip) {
-    await addTripToQueue("update", updatedTrip);
-  }
-
-  await db.vehicles.update(trip.vehicleId, {
-    status: "Disponível",
-    km: data.endKm,
-
-    lastDriver: trip.driverName,
-    lastUsedAt: new Date().toISOString(),
-  });
-
-  const updatedVehicle = await db.vehicles.get(trip.vehicleId);
-  if (updatedVehicle) {
-    await addVehicleToQueue("update", updatedVehicle);
-  }
+  // Sync enfileirado fora da transação (fetch não é permitido dentro)
+  if (updatedTrip) await addTripToQueue("update", updatedTrip);
+  if (updatedVehicle) await addVehicleToQueue("update", updatedVehicle);
 }
+
 export async function getLastFinishedTrip() {
   const trips = await db.trips.toArray();
   return trips
@@ -71,6 +67,7 @@ export async function getLastFinishedTrip() {
         new Date(a.endedAt || "").getTime(),
     )[0];
 }
+
 export async function getTripsByVehicle(vehicleId: string) {
   const trips = await db.trips.toArray();
   return trips
