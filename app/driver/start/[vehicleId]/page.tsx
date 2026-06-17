@@ -33,14 +33,27 @@ export default function DriverStartPage({
     }
     loadVehicle();
   }, [params, router]);
+  function getCurrentPosition(): Promise<GeolocationPosition> {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      });
+    });
+  }
 
   async function handleStart() {
     const activeTrip = await getActiveTrip();
+
     if (activeTrip) {
       router.push("/driver/running");
       return;
     }
+
     if (!vehicle || !session) return;
+
+    const position = await getCurrentPosition();
 
     await createTrip({
       vehicleId: vehicle.id!,
@@ -51,8 +64,9 @@ export default function DriverStartPage({
       startedAt: new Date().toISOString(),
       status: "Em andamento",
       synced: false,
-      lat: -24.021347,
-      lng: -48.362951,
+
+      lat: position.coords.latitude,
+      lng: position.coords.longitude,
     });
 
     router.push("/driver/running");
