@@ -267,7 +267,9 @@ export default function DriverRunningPage() {
         <Button
           onClick={() => router.push("/driver/end")}
           className="w-full h-12 rounded-2xl text-base font-semibold"
-        ></Button>
+        >
+          Finalizar uso
+        </Button>
       </div>
     </MobileLayout>
   );

@@ -4,13 +4,10 @@ import { AutoSync } from "@/components/AutoSync";
 import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { clearSession, getSession } from "@/services/sessionService";
 import { SyncStatusBadge } from "@/components/syncStatusBadge";
 
 export default function DriverLayout({ children }: { children: ReactNode }) {
-  useAuthGuard("driver");
-
   const router = useRouter();
 
   const [user, setUser] = useState<Awaited<
@@ -37,7 +34,6 @@ export default function DriverLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
-      <AutoSync />
       <header className="border-b border-zinc-800">
         <div className="px-6 h-16 flex items-center justify-between">
           <h1 className="font-bold">SF Frota</h1>
@@ -54,7 +50,7 @@ export default function DriverLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-
+      <AutoSync />
       {children}
     </div>
   );

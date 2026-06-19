@@ -1,5 +1,6 @@
 import { db, Trip, Vehicle } from "@/lib/db";
 import { addTripToQueue, addVehicleToQueue } from "@/services/syncQueueService";
+import { syncPendingItems } from "@/services/syncService";
 
 export async function createTrip(trip: Omit<Trip, "id" | "startKm">) {
   const vehicle = await db.vehicles.get(trip.vehicleId);
@@ -31,6 +32,9 @@ export async function createTrip(trip: Omit<Trip, "id" | "startKm">) {
   if (updatedVehicle) {
     await addVehicleToQueue("update", updatedVehicle);
   }
+
+  // Dispara sync imediatamente — não espera o próximo tick do useAutoSync (até 30s)
+  syncPendingItems().catch(() => {});
 
   return newTrip.id;
 }
@@ -66,6 +70,10 @@ export async function finishTrip(id: string, data: Partial<Trip>) {
   // Sync enfileirado fora da transação (fetch não é permitido dentro)
   if (updatedTrip) await addTripToQueue("update", updatedTrip);
   if (updatedVehicle) await addVehicleToQueue("update", updatedVehicle);
+
+  // Dispara sync imediatamente — o encerramento é o momento mais crítico
+  // para o admin saber rápido (libera o veículo, evita "punir" o motorista)
+  syncPendingItems().catch(() => {});
 }
 
 export async function getLastFinishedTrip() {

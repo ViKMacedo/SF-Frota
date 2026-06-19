@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import {
   BarChart,
   Bar,
@@ -23,33 +24,29 @@ import { exportTripsToPDF, exportTripsToExcel } from "@/services/exportService";
 import type { Trip } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 
+const EMPTY_REPORT = {
+  stats: {
+    totalTrips: 0,
+    finishedTrips: 0,
+    activeTrips: 0,
+    totalKm: 0,
+    averageKm: 0,
+  },
+  kmPerVehicle: [] as { name: string; km: number }[],
+  tripsPerDriver: [] as { name: string; trips: number }[],
+  trips: [] as Trip[],
+};
+
 export default function ReportsPage() {
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("Todos");
   const [driverFilter, setDriverFilter] = useState("Todos");
   const [vehicleFilter, setVehicleFilter] = useState("Todos");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
-  const [reportData, setReportData] = useState({
-    stats: {
-      totalTrips: 0,
-      finishedTrips: 0,
-      activeTrips: 0,
-      totalKm: 0,
-      averageKm: 0,
-    },
-    kmPerVehicle: [] as { name: string; km: number }[],
-    tripsPerDriver: [] as { name: string; trips: number }[],
-    trips: [] as Trip[],
-  });
-  useEffect(() => {
-    async function fetchReports() {
-      const data = await getReportsData();
-      setReportData(data);
-      setLoading(false);
-    }
-    fetchReports();
-  }, []);
+
+  // useLiveQuery observa o Dexie e recalcula sempre que trips/vehicles/drivers mudam
+  const reportData = useLiveQuery(() => getReportsData(), []) ?? EMPTY_REPORT;
+  const loading = reportData === EMPTY_REPORT && reportData.trips.length === 0;
 
   const filteredTrips = useMemo(() => {
     return reportData.trips.filter((trip) => {
@@ -124,21 +121,6 @@ export default function ReportsPage() {
       </div>
     );
   }
-  console.log("REPORT TRIPS:", reportData.trips.length);
-
-  console.table(
-    reportData.trips.map((trip) => ({
-      id: trip.id,
-      status: trip.status,
-      driver: trip.driverName,
-      vehicle: trip.vehicleModel,
-    })),
-  );
-  console.log("FILTERS", {
-    statusFilter,
-    driverFilter,
-    vehicleFilter,
-  });
 
   return (
     <div>

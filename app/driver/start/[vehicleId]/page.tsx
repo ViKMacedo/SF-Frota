@@ -19,6 +19,7 @@ export default function DriverStartPage({
 }) {
   const router = useRouter();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const session = useLiveQuery(() => db.sessions.get("current"), []);
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export default function DriverStartPage({
     }
     loadVehicle();
   }, [params, router]);
+
   function getCurrentPosition(): Promise<GeolocationPosition> {
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -44,32 +46,39 @@ export default function DriverStartPage({
   }
 
   async function handleStart() {
-    const activeTrip = await getActiveTrip();
+    // Trava: impede múltiplas execuções por toque duplo/clique repetido
+    if (submitting) return;
+    setSubmitting(true);
 
-    if (activeTrip) {
+    try {
+      const activeTrip = await getActiveTrip();
+
+      if (activeTrip) {
+        router.push("/driver/running");
+        return;
+      }
+
+      if (!vehicle || !session) return;
+
+      const position = await getCurrentPosition();
+
+      await createTrip({
+        vehicleId: vehicle.id!,
+        vehicleModel: vehicle.model,
+        vehiclePlate: vehicle.plate,
+        driverId: session.userId!,
+        driverName: session.name,
+        startedAt: new Date().toISOString(),
+        status: "Em andamento",
+        synced: false,
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      });
+
       router.push("/driver/running");
-      return;
+    } finally {
+      setSubmitting(false);
     }
-
-    if (!vehicle || !session) return;
-
-    const position = await getCurrentPosition();
-
-    await createTrip({
-      vehicleId: vehicle.id!,
-      vehicleModel: vehicle.model,
-      vehiclePlate: vehicle.plate,
-      driverId: session.userId!,
-      driverName: session.name,
-      startedAt: new Date().toISOString(),
-      status: "Em andamento",
-      synced: false,
-
-      lat: position.coords.latitude,
-      lng: position.coords.longitude,
-    });
-
-    router.push("/driver/running");
   }
 
   if (!vehicle) {
@@ -127,9 +136,10 @@ export default function DriverStartPage({
       <div className="mt-auto">
         <Button
           onClick={handleStart}
-          className="w-full h-12 rounded-2xl text-base font-semibold"
+          disabled={submitting}
+          className="w-full h-12 rounded-2xl text-base font-semibold disabled:opacity-60"
         >
-          Confirmar e iniciar
+          {submitting ? "Iniciando..." : "Confirmar e iniciar"}
         </Button>
       </div>
     </MobileLayout>

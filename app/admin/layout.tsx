@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { Sidebar } from "@/components/admin/sidebar";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { useAdminPull } from "@/hooks/useAdminPull";
 import { clearSession, getSession } from "@/services/sessionService";
 
 type User = {
@@ -19,6 +20,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   useAuthGuard("admin");
+  useAdminPull();
 
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
