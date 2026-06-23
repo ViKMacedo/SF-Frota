@@ -9,6 +9,7 @@ import {
     TripQueueItem,
     VehicleQueueItem,
 } from "@/lib/db";
+import bcrypt from "bcryptjs";
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -190,12 +191,23 @@ async function processDriver(item: DriverQueueItem) {
     }
 
     const { payload } = item;
+
+    const pin_hash = payload.pin_hash ??
+        (payload.pin ? await bcrypt.hash(payload.pin, 12) : null);
+
+    if (!pin_hash) {
+        throw new Error(
+            `Driver ${payload.id}: sem PIN nem hash disponível para persistir`,
+        );
+    }
+
     const { error } = await supabaseAdmin.from("drivers").upsert(
         {
             id: payload.id,
             name: payload.name,
             registration: payload.registration,
-            pin: payload.pin,
+            pin_hash,
+            pin: null, // nunca persiste PIN em texto puro no Supabase
             role: payload.role,
             license: payload.license,
             status: payload.status,

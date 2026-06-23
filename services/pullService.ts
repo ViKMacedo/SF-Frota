@@ -1,6 +1,18 @@
 import { db, type Trip, type Vehicle } from "@/lib/db";
 import { getSession } from "@/services/sessionService";
 
+const LAST_PULL_KEY = "sf-frota:lastPullAt";
+
+function getLastPullAt(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(LAST_PULL_KEY);
+}
+
+function setLastPullAt(isoDate: string) {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(LAST_PULL_KEY, isoDate);
+}
+
 function mapVehicle(v: Record<string, unknown>): Vehicle {
     return {
         id: v.id as string,
@@ -38,8 +50,6 @@ function mapTrip(t: Record<string, unknown>): Trip {
     };
 }
 
-let lastPullAt: string | null = null;
-
 export async function pullFromSupabase() {
     const session = await getSession();
     if (!session?.token) return;
@@ -49,7 +59,10 @@ export async function pullFromSupabase() {
         res = await fetch("/api/pull", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: session.token, since: lastPullAt }),
+            body: JSON.stringify({
+                token: session.token,
+                since: getLastPullAt(),
+            }),
         });
     } catch {
         return;
@@ -69,5 +82,5 @@ export async function pullFromSupabase() {
         await db.vehicles.bulkPut(mappedVehicles);
     });
 
-    lastPullAt = new Date().toISOString();
+    setLastPullAt(new Date().toISOString());
 }

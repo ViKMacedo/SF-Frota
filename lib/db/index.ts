@@ -126,6 +126,7 @@ export interface Driver {
   name: string;
   registration: string;
   pin: string;
+  pin_hash?: string;
   role: "admin" | "driver";
   license: "A" | "B" | "C" | "D" | "E" | "AB";
   status: "Ativo" | "Afastado" | "Férias";

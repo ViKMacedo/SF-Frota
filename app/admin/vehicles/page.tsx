@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import QRCode from "qrcode";
 import Image from "next/image";
 
@@ -15,21 +16,24 @@ import { FormInput } from "@/components/admin/formInput";
 import { FormLabel } from "@/components/admin/formLabel";
 import { FormSelect } from "@/components/admin/formSelect";
 import { ActionMenu } from "@/components/admin/actionMenu";
-import type { Vehicle } from "@/lib/db";
+import { db, type Vehicle } from "@/lib/db";
 
 import {
-  getVehicles,
   createVehicle,
   updateVehicle,
   deleteVehicle,
 } from "@/services/vehicleService";
+import { syncPendingItems } from "@/services/syncService";
+
+const ITEMS_PER_PAGE = 10;
 
 export default function VehiclesPage() {
+  const allVehicles = useLiveQuery(() => db.vehicles.toArray(), []) ?? [];
+
   const [showInactive, setShowInactive] = useState(false);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedQrVehicle, setSelectedQrVehicle] = useState<Vehicle | null>(
     null,
   );
@@ -44,13 +48,7 @@ export default function VehiclesPage() {
     "Disponível" | "Em uso" | "Em manutenção" | "Inativo"
   >("Disponível");
   const [formError, setFormError] = useState("");
-  useEffect(() => {
-    loadVehicles();
-  }, []);
-  async function loadVehicles() {
-    const data = await getVehicles();
-    setVehicles(data);
-  }
+  const [page, setPage] = useState(1);
 
   async function handleCreateVehicle() {
     const plateRegex = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/;
@@ -68,13 +66,7 @@ export default function VehiclesPage() {
     }
     setFormError("");
 
-    const vehicleData = {
-      model,
-      plate,
-      type,
-      km: Number(km),
-      status,
-    };
+    const vehicleData = { model, plate, type, km: Number(km), status };
 
     try {
       if (editingId !== null) {
@@ -89,7 +81,7 @@ export default function VehiclesPage() {
       return;
     }
 
-    await loadVehicles();
+    syncPendingItems();
     resetForm();
   }
 
@@ -101,6 +93,7 @@ export default function VehiclesPage() {
     setStatus("Disponível");
     setEditingId(null);
     setFormError("");
+    syncPendingItems();
     setOpen(false);
   }
 
@@ -117,17 +110,14 @@ export default function VehiclesPage() {
 
   async function handleOpenQr(vehicle: Vehicle) {
     setSelectedQrVehicle(vehicle);
-    const qrData = JSON.stringify({
-      vehicleId: vehicle.id,
-    });
-
-    const qr = await QRCode.toDataURL(qrData);
+    const qr = await QRCode.toDataURL(
+      JSON.stringify({ vehicleId: vehicle.id }),
+    );
     setQrCode(qr);
     setOpenMenuId(null);
   }
-  const ITEMS_PER_PAGE = 10;
-  const [page, setPage] = useState(1);
-  const filteredVehicles = vehicles.filter(
+
+  const filteredVehicles = allVehicles.filter(
     (v) => showInactive || v.status !== "Inativo",
   );
   const totalPages = Math.ceil(filteredVehicles.length / ITEMS_PER_PAGE);
@@ -135,9 +125,9 @@ export default function VehiclesPage() {
     (page - 1) * ITEMS_PER_PAGE,
     page * ITEMS_PER_PAGE,
   );
+
   return (
     <div>
-      {/* Header */}
       <div className="flex items-center justify-between mb-10">
         <Header title="Veículos" description="Gestão da frota" />
         <Button
@@ -148,7 +138,6 @@ export default function VehiclesPage() {
         </Button>
       </div>
 
-      {/* Toggle inativos */}
       <div className="flex items-center gap-2 mb-4">
         <button
           onClick={() => {
@@ -164,7 +153,6 @@ export default function VehiclesPage() {
         <span className="text-sm text-zinc-500">Mostrar inativos</span>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto no-scrollbar">
         <Table headers={["Modelo", "Placa", "Tipo", "KM", "Status", "Ações"]}>
           {paginatedVehicles.map((vehicle) => (
@@ -196,12 +184,9 @@ export default function VehiclesPage() {
                   }
                   onEdit={() => handleEditVehicle(vehicle)}
                   onDelete={async () => {
-                    if (!vehicle.id) {
-                      return;
-                    }
-
+                    if (!vehicle.id) return;
                     await deleteVehicle(vehicle.id);
-                    await loadVehicles();
+                    syncPendingItems();
                     setOpenMenuId(null);
                   }}
                   onQr={() => handleOpenQr(vehicle)}
@@ -233,7 +218,6 @@ export default function VehiclesPage() {
               />
             </div>
           )}
-
           <div className="mt-6 text-center">
             <p className="text-lg font-semibold">{selectedQrVehicle?.model}</p>
             <p className="text-zinc-500">{selectedQrVehicle?.plate}</p>
@@ -241,7 +225,7 @@ export default function VehiclesPage() {
         </div>
       </Modal>
 
-      {/* Modal */}
+      {/* Form Modal */}
       <Modal
         open={open}
         onClose={resetForm}
@@ -262,13 +246,9 @@ export default function VehiclesPage() {
               placeholder="ABC1234"
               value={plate}
               maxLength={7}
-              onChange={(e) => {
-                const value = e.target.value
-                  .toUpperCase()
-                  .replace(/[^A-Z0-9]/g, "");
-
-                setPlate(value);
-              }}
+              onChange={(e) =>
+                setPlate(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
+              }
             />
           </div>
           <div className="space-y-2">
@@ -284,7 +264,6 @@ export default function VehiclesPage() {
               <option value="Caminhonete">Caminhonete</option>
             </FormSelect>
           </div>
-
           <div className="space-y-2">
             <FormLabel>KM atual</FormLabel>
             <FormInput
@@ -293,10 +272,7 @@ export default function VehiclesPage() {
               placeholder="120000"
               value={km}
               maxLength={6}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, "");
-                setKm(value);
-              }}
+              onChange={(e) => setKm(e.target.value.replace(/\D/g, ""))}
             />
           </div>
           <div className="space-y-2">
@@ -325,6 +301,7 @@ export default function VehiclesPage() {
           </Button>
         </div>
       </Modal>
+
       <div className="flex items-center justify-between mt-6">
         <p className="text-sm text-zinc-500">
           Mostrando{" "}
@@ -332,37 +309,23 @@ export default function VehiclesPage() {
           {Math.min(page * ITEMS_PER_PAGE, filteredVehicles.length)} de{" "}
           {filteredVehicles.length} veículos
         </p>
-
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             disabled={page === 1}
             onClick={() => setPage((p) => p - 1)}
-            className="
-        rounded-xl
-        border-zinc-700
-        bg-zinc-900
-        hover:bg-zinc-800
-      "
+            className="rounded-xl border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
           >
             ←
           </Button>
-
           <div className="px-4 text-sm font-medium text-zinc-400">
             {page} / {Math.max(totalPages, 1)}
           </div>
-
           <Button
             variant="outline"
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
-            className="
-        rounded-xl
-        border-zinc-700
-        bg-zinc-900
-        hover:bg-indigo-600
-        hover:border-indigo-600
-      "
+            className="rounded-xl border-zinc-700 bg-zinc-900 hover:bg-indigo-600 hover:border-indigo-600"
           >
             →
           </Button>

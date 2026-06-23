@@ -26,18 +26,34 @@ export async function POST(req: NextRequest) {
             new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
         const [
-            { data: trips, error: tripsError },
+            { data: activeTrips, error: activeError },
+            { data: recentTrips, error: recentError },
             { data: vehicles, error: vehiclesError },
         ] = await Promise.all([
+            // Duas queries separadas evitam o escape frágil do .or() com strings
             supabaseAdmin
                 .from("trips")
                 .select("*")
-                .or(`status.eq."Em andamento",ended_at.gte.${sinceDate}`),
+                .eq("status", "Em andamento"),
+
+            supabaseAdmin
+                .from("trips")
+                .select("*")
+                .gte("ended_at", sinceDate),
 
             supabaseAdmin.from("vehicles").select("*"),
         ]);
 
-        if (tripsError) throw tripsError;
+        if (activeError) throw activeError;
+        if (recentError) throw recentError;
+
+        // Deduplica por id (uma trip ativa pode também ter ended_at recente)
+        const tripsMap = new Map<string, typeof activeTrips[0]>();
+        for (const t of [...(activeTrips ?? []), ...(recentTrips ?? [])]) {
+            tripsMap.set(t.id, t);
+        }
+        const trips = Array.from(tripsMap.values());
+
         if (vehiclesError) throw vehiclesError;
 
         return NextResponse.json({ success: true, trips, vehicles });

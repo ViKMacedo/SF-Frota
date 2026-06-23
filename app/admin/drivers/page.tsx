@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/admin/modal";
@@ -21,9 +22,9 @@ import {
   updateDriver,
   deleteDriver,
 } from "@/services/driverService";
+import { syncPendingItems } from "@/services/syncService";
 
 export default function DriversPage() {
-  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [showInactive, setShowInactive] = useState(false);
   const [pin, setPin] = useState("");
   const [role, setRole] = useState<"admin" | "driver">("driver");
@@ -38,14 +39,7 @@ export default function DriversPage() {
   const [status, setStatus] = useState<"Ativo" | "Afastado" | "Férias">(
     "Ativo",
   );
-  useEffect(() => {
-    loadDrivers();
-  }, []);
-  async function loadDrivers() {
-    const data = await getDrivers();
-
-    setDrivers(data);
-  }
+  const drivers = useLiveQuery(async () => await getDrivers(), [], []);
   async function handleCreateDriver() {
     if (!name || !registration || !pin || !license) {
       return;
@@ -63,8 +57,8 @@ export default function DriversPage() {
     } else {
       await createDriver(driverData);
     }
-    await loadDrivers();
     resetForm();
+    syncPendingItems();
   }
 
   function resetForm() {
@@ -91,7 +85,7 @@ export default function DriversPage() {
   }
   const ITEMS_PER_PAGE = 10;
   const [page, setPage] = useState(1);
-  const filteredDrivers = drivers.filter(
+  const filteredDrivers = (drivers ?? []).filter(
     (d) => showInactive || d.status !== "Afastado",
   );
   const totalPages = Math.ceil(filteredDrivers.length / ITEMS_PER_PAGE);
@@ -164,7 +158,6 @@ export default function DriversPage() {
                       return;
                     }
                     await deleteDriver(driver.id);
-                    await loadDrivers();
                     setOpenMenuId(null);
                   }}
                 />

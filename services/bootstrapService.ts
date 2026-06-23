@@ -70,7 +70,7 @@ function mapTrip(trip: {
         lng: trip.lng,
         speed: trip.speed ?? undefined,
         statusLabel: trip.status_label ?? undefined,
-        route: trip.route ?? [], // ✅ Fix: preserva histórico de rota GPS
+        route: trip.route ?? [],
     };
 }
 
@@ -98,13 +98,25 @@ export async function bootstrapDatabase(token: string) {
         db.vehicles,
         db.trips,
         async () => {
+            const unsyncedTrips = await db.trips
+                .filter((t) => t.synced === false)
+                .toArray();
+
             await db.drivers.clear();
             await db.vehicles.clear();
-            await db.trips.clear();
+
+            // Apaga apenas trips sincronizadas; mantém as pendentes de sync
+            await db.trips.filter((t: Trip) => t.synced !== false).delete();
 
             await db.drivers.bulkPut(data.drivers);
             await db.vehicles.bulkPut(vehicles);
-            await db.trips.bulkPut(trips);
+
+            // Faz upsert das trips do servidor (sem sobrescrever as não sincronizadas)
+            const unsyncedIds = new Set(unsyncedTrips.map((t) => t.id));
+            const serverTripsToWrite = trips.filter(
+                (t: { id: string }) => !unsyncedIds.has(t.id),
+            );
+            await db.trips.bulkPut(serverTripsToWrite);
         },
     );
 

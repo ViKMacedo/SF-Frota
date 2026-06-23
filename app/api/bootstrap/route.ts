@@ -7,6 +7,32 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
+const PAGE_SIZE = 500;
+
+async function fetchAllPages<T>(
+    query: () => ReturnType<typeof supabaseAdmin.from>,
+    table: string,
+): Promise<T[]> {
+    const results: T[] = [];
+    let from = 0;
+
+    while (true) {
+        const { data, error } = await supabaseAdmin
+            .from(table)
+            .select("*")
+            .range(from, from + PAGE_SIZE - 1);
+
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        results.push(...(data as T[]));
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+    }
+
+    return results;
+}
+
 export async function POST(req: NextRequest) {
     try {
         const { token } = await req.json();
@@ -24,35 +50,30 @@ export async function POST(req: NextRequest) {
 
         await jwtVerify(token, secret);
 
-        const [
-            { data: drivers, error: driversError },
-            { data: vehicles, error: vehiclesError },
-            { data: trips, error: tripsError },
-        ] = await Promise.all([
-            supabaseAdmin
-                .from("drivers")
-                .select("*"),
-
-            supabaseAdmin
-                .from("vehicles")
-                .select("*"),
+        const [drivers, vehicles, trips] = await Promise.all([
+            fetchAllPages(
+                () => supabaseAdmin.from("drivers"),
+                "drivers",
+            ),
+            fetchAllPages(
+                () => supabaseAdmin.from("vehicles"),
+                "vehicles",
+            ),
 
             supabaseAdmin
                 .from("trips")
-                .select("*"),
+                .select("*")
+                .or(
+                    `status.eq.Em andamento,ended_at.gte.${
+                        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                            .toISOString()
+                    }`,
+                )
+                .then(({ data, error }) => {
+                    if (error) throw error;
+                    return data ?? [];
+                }),
         ]);
-
-        if (driversError) {
-            throw driversError;
-        }
-
-        if (vehiclesError) {
-            throw vehiclesError;
-        }
-
-        if (tripsError) {
-            throw tripsError;
-        }
 
         return NextResponse.json({
             success: true,
