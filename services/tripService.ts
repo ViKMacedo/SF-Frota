@@ -44,7 +44,14 @@ export async function getTrips() {
 }
 
 export async function getActiveTrip() {
-  return await db.trips.where("status").equals("Em andamento").first();
+  const session = await db.sessions.get("current");
+  if (!session) return undefined;
+
+  return await db.trips
+    .where("status")
+    .equals("Em andamento")
+    .filter((trip) => trip.driverId === session.userId)
+    .first();
 }
 
 export async function finishTrip(id: string, data: Partial<Trip>) {
