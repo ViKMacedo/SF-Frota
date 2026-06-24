@@ -103,7 +103,7 @@ class AppDatabase extends Dexie {
 
   constructor() {
     super("sf-frota-db");
-    this.version(8).stores({
+    this.version(9).stores({
       vehicles: "id, plate, status",
       trips: "id, vehicleId, status",
       drivers: "id, name, registration",

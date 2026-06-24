@@ -58,12 +58,6 @@ function LoginForm() {
 
       await createSession(data.driver, data.token);
       await bootstrapDatabase(data.token);
-
-      if (data.driver.role === "admin") {
-        router.push("/admin/dashboard");
-      } else {
-        router.push("/driver/scan");
-      }
     } catch {
       showToast("Falha de conexão. Tente novamente.", "error");
     } finally {
