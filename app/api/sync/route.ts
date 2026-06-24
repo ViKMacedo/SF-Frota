@@ -157,23 +157,20 @@ async function processItem(item: SyncQueueItem) {
 }
 
 async function processSettings(item: SettingsQueueItem) {
-    if (item.operation === "delete") {
-        // Configurações não são excluídas, apenas atualizadas.
-        return;
-    }
+    if (item.operation === "delete") return;
 
     const { payload } = item;
     const { error } = await supabaseAdmin.from("settings").upsert(
         {
-            id: payload.id,
-            companyName: payload.companyName,
-            companyDocument: payload.companyDocument,
-            companyPhone: payload.companyPhone,
-            companyEmail: payload.companyEmail,
-            sessionTimeout: payload.sessionTimeout,
-            allowDeleteDrivers: payload.allowDeleteDrivers,
-            allowDeleteVehicles: payload.allowDeleteVehicles,
-            allowDeleteTrips: payload.allowDeleteTrips,
+            id: 1,
+            company_name: payload.companyName,
+            company_document: payload.companyDocument,
+            company_phone: payload.companyPhone,
+            company_email: payload.companyEmail,
+            session_timeout: payload.sessionTimeout,
+            allow_delete_drivers: payload.allowDeleteDrivers,
+            allow_delete_vehicles: payload.allowDeleteVehicles,
+            allow_delete_trips: payload.allowDeleteTrips,
         },
         { onConflict: "id" },
     );

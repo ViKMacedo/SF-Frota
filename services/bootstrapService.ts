@@ -1,4 +1,4 @@
-import { db, type Trip, type Vehicle } from "@/lib/db";
+import { db, type Settings, type Trip, type Vehicle } from "@/lib/db";
 
 function mapVehicle(vehicle: {
     id: string;
@@ -97,6 +97,7 @@ export async function bootstrapDatabase(token: string) {
         db.drivers,
         db.vehicles,
         db.trips,
+        db.settings,
         async () => {
             const unsyncedTrips = await db.trips
                 .filter((t) => t.synced === false)
@@ -104,19 +105,21 @@ export async function bootstrapDatabase(token: string) {
 
             await db.drivers.clear();
             await db.vehicles.clear();
-
-            // Apaga apenas trips sincronizadas; mantém as pendentes de sync
             await db.trips.filter((t: Trip) => t.synced !== false).delete();
 
             await db.drivers.bulkPut(data.drivers);
             await db.vehicles.bulkPut(vehicles);
 
-            // Faz upsert das trips do servidor (sem sobrescrever as não sincronizadas)
             const unsyncedIds = new Set(unsyncedTrips.map((t) => t.id));
             const serverTripsToWrite = trips.filter(
                 (t: { id: string }) => !unsyncedIds.has(t.id),
             );
             await db.trips.bulkPut(serverTripsToWrite);
+
+            // Salva settings do servidor se existirem
+            if (data.settings) {
+                await db.settings.put(data.settings as Settings);
+            }
         },
     );
 
@@ -124,5 +127,6 @@ export async function bootstrapDatabase(token: string) {
         drivers: data.drivers.length,
         vehicles: vehicles.length,
         trips: trips.length,
+        settings: data.settings ? 1 : 0,
     };
 }

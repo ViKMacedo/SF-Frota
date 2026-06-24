@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
         await jwtVerify(token, secret);
 
-        const [drivers, vehicles, trips] = await Promise.all([
+        const [drivers, vehicles, trips, settingsRaw] = await Promise.all([
             fetchAllPages(
                 () => supabaseAdmin.from("drivers"),
                 "drivers",
@@ -59,7 +59,6 @@ export async function POST(req: NextRequest) {
                 () => supabaseAdmin.from("vehicles"),
                 "vehicles",
             ),
-
             supabaseAdmin
                 .from("trips")
                 .select("*")
@@ -73,13 +72,34 @@ export async function POST(req: NextRequest) {
                     if (error) throw error;
                     return data ?? [];
                 }),
+            supabaseAdmin
+                .from("settings")
+                .select("*")
+                .eq("id", 1)
+                .single()
+                .then(({ data }) => data),
         ]);
+
+        const settings = settingsRaw
+            ? {
+                id: "default",
+                companyName: settingsRaw.company_name ?? "SF Frota",
+                companyDocument: settingsRaw.company_document ?? "",
+                companyPhone: settingsRaw.company_phone ?? "",
+                companyEmail: settingsRaw.company_email ?? "",
+                sessionTimeout: settingsRaw.session_timeout ?? "60",
+                allowDeleteDrivers: settingsRaw.allow_delete_drivers ?? true,
+                allowDeleteVehicles: settingsRaw.allow_delete_vehicles ?? true,
+                allowDeleteTrips: settingsRaw.allow_delete_trips ?? false,
+            }
+            : null;
 
         return NextResponse.json({
             success: true,
             drivers,
             vehicles,
             trips,
+            settings,
         });
     } catch (error) {
         console.error("[BOOTSTRAP]", error);

@@ -1,4 +1,5 @@
 import { db, Driver, Settings, Trip, Vehicle } from "@/lib/db";
+import { generateId } from "@/lib/generateId";
 
 // ✅ Itens que falharem mais de MAX_RETRIES vezes são descartados automaticamente
 export const MAX_SYNC_RETRIES = 5;
@@ -8,9 +9,7 @@ export async function addDriverToQueue(
   payload: Driver,
 ) {
   await db.syncQueue.add({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2)}-${
-      Math.random().toString(36).slice(2)
-    }`,
+    id: generateId(),
     entity: "driver",
     operation,
     payload,
@@ -25,7 +24,7 @@ export async function addVehicleToQueue(
   payload: Vehicle,
 ) {
   await db.syncQueue.add({
-    id: crypto.randomUUID(),
+    id: generateId(),
     entity: "vehicle",
     operation,
     payload,
@@ -40,7 +39,7 @@ export async function addTripToQueue(
   payload: Trip,
 ) {
   await db.syncQueue.add({
-    id: crypto.randomUUID(),
+    id: generateId(),
     entity: "trip",
     operation,
     payload,
@@ -55,7 +54,7 @@ export async function addSettingsToQueue(
   payload: Settings,
 ) {
   await db.syncQueue.add({
-    id: crypto.randomUUID(),
+    id: generateId(),
     entity: "settings",
     operation,
     payload,

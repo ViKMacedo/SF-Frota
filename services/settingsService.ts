@@ -20,6 +20,7 @@ export async function getSettings() {
   await db.settings.put(defaults);
   return defaults;
 }
+
 export async function saveSettings(settings: Settings) {
   await db.settings.put(settings);
   await addSettingsToQueue("update", settings);
