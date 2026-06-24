@@ -8,7 +8,9 @@ export async function addDriverToQueue(
   payload: Driver,
 ) {
   await db.syncQueue.add({
-    id: crypto.randomUUID(),
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}-${
+      Math.random().toString(36).slice(2)
+    }`,
     entity: "driver",
     operation,
     payload,

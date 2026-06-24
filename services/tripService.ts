@@ -1,6 +1,7 @@
 import { db, Trip, Vehicle } from "@/lib/db";
 import { addTripToQueue, addVehicleToQueue } from "@/services/syncQueueService";
 import { syncPendingItems } from "@/services/syncService";
+import { generateId } from "@/lib/generateId";
 
 export async function createTrip(trip: Omit<Trip, "id" | "startKm">) {
   const vehicle = await db.vehicles.get(trip.vehicleId);
@@ -11,7 +12,7 @@ export async function createTrip(trip: Omit<Trip, "id" | "startKm">) {
 
   const newTrip: Trip = {
     ...trip,
-    id: crypto.randomUUID(),
+    id: generateId(),
     startKm: vehicle.km,
   };
 

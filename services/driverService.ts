@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { Driver } from "@/lib/db";
 import { addDriverToQueue } from "./syncQueueService";
+import { generateId } from "@/lib/generateId";
 
 export async function getDrivers() {
   return await db.drivers.toArray();
@@ -9,7 +10,7 @@ export async function getDrivers() {
 export async function createDriver(driver: Omit<Driver, "id">) {
   const newDriver: Driver = {
     ...driver,
-    id: crypto.randomUUID(),
+    id: generateId(),
   };
   await db.drivers.add(newDriver);
   await addDriverToQueue("create", newDriver);

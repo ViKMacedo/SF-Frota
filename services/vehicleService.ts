@@ -1,5 +1,6 @@
 import { db, type Vehicle, VehicleStatus } from "@/lib/db";
 import { addVehicleToQueue } from "@/services/syncQueueService";
+import { generateId } from "@/lib/generateId";
 
 export async function getVehicles(): Promise<Vehicle[]> {
   return await db.vehicles.toArray();
@@ -27,7 +28,7 @@ export async function createVehicle(vehicle: Omit<Vehicle, "id">) {
 
   const newVehicle: Vehicle = {
     ...vehicle,
-    id: crypto.randomUUID(),
+    id: generateId(),
   };
 
   await db.vehicles.add(newVehicle);

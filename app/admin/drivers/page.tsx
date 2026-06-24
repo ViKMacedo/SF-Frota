@@ -41,21 +41,30 @@ export default function DriversPage() {
   );
   const drivers = useLiveQuery(async () => await getDrivers(), [], []);
   async function handleCreateDriver() {
-    if (!name || !registration || !pin || !license) {
+    // DEPOIS
+    if (!name || !registration || !license) {
       return;
     }
-    const driverData = {
-      name,
-      registration,
-      pin,
-      role,
-      license,
-      status,
-    };
+    if (!editingId && !pin) {
+      return;
+    }
+    if (pin && !/^\d{4}$/.test(pin)) {
+      alert("PIN deve conter apenas 4 dígitos.");
+      return;
+    }
+
     if (editingId !== null) {
+      const driverData: Partial<Driver> = {
+        name,
+        registration,
+        role,
+        license,
+        status,
+      };
+      if (pin) driverData.pin = pin;
       await updateDriver(editingId, driverData);
     } else {
-      await createDriver(driverData);
+      await createDriver({ name, registration, pin, role, license, status });
     }
     resetForm();
     syncPendingItems();
@@ -76,7 +85,7 @@ export default function DriversPage() {
     setEditingId(driver.id ?? null);
     setName(driver.name);
     setRegistration(driver.registration);
-    setPin(driver.pin);
+    setPin("");
     setRole(driver.role ?? "driver");
     setLicense(driver.license);
     setStatus(driver.status);
@@ -238,10 +247,12 @@ export default function DriversPage() {
             />
           </div>
           <div className="space-y-2">
-            <FormLabel>PIN</FormLabel>
+            <FormLabel>
+              PIN{editingId ? " (deixe em branco para não alterar)" : ""}
+            </FormLabel>
             <FormInput
               type="password"
-              placeholder="1234"
+              placeholder={editingId ? "Novo PIN (opcional)" : "1234"}
               value={pin}
               maxLength={4}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}

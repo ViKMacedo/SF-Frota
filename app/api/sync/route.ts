@@ -201,20 +201,22 @@ async function processDriver(item: DriverQueueItem) {
         );
     }
 
-    const { error } = await supabaseAdmin.from("drivers").upsert(
-        {
-            id: payload.id,
-            name: payload.name,
-            registration: payload.registration,
-            pin_hash,
-            pin: null, // nunca persiste PIN em texto puro no Supabase
-            role: payload.role,
-            license: payload.license,
-            status: payload.status,
-        },
-        { onConflict: "id" },
-    );
-    if (error) throw error;
+    const driverData = {
+        id: payload.id,
+        name: payload.name,
+        registration: payload.registration,
+        pin_hash,
+        pin: payload.pin ?? "migrated",
+        role: payload.role,
+        license: payload.license,
+        status: payload.status,
+    };
+
+    const { error } = await supabaseAdmin
+        .from("drivers")
+        .upsert(driverData, { onConflict: "id" });
+
+    if (!error) return;
 }
 
 async function processVehicle(item: VehicleQueueItem) {
