@@ -1,196 +1,177 @@
-# 🚛 SF Frota
+# SF Frota
 
-Sistema de gestão de frota desenvolvido com Next.js, TypeScript e TailwindCSS.
-
-O projeto possui:
-
-- painel administrativo
-- gestão de veículos
-- gestão de motoristas
-- rastreamento em mapa
-- relatórios
-- fluxo operacional do motorista
-- controle de utilização de veículos
+Sistema operacional de frota com suporte **offline-first**, rastreamento GPS em tempo real e sincronização automática com Supabase. Desenvolvido para operar em campo — o motorista trabalha sem depender de internet, e o admin acompanha tudo ao vivo.
 
 ---
 
-# 📸 Preview
+## Como funciona
 
-## Painel Administrativo
+O sistema tem dois lados:
 
-- Dashboard operacional
-- Gestão de veículos
-- Gestão de motoristas
-- Rastreamento em tempo real
-- Relatórios operacionais
+**Motorista (mobile)**
+Acessa pelo celular como PWA instalado na tela inicial. Escaneia o QR Code do veículo, registra KM inicial, realiza a viagem e finaliza com KM final. Tudo funciona offline — os dados ficam salvos localmente e sincronizam automaticamente quando a internet voltar.
 
-## Aplicação do Motorista
+**Administrador (web)**
+Acompanha a frota em tempo real pelo painel: mapa com posição dos veículos, KPIs do dia, histórico de viagens, relatórios e gestão de motoristas e veículos. O painel atualiza sozinho a cada 10 segundos.
 
-- Escaneamento de QR Code
-- Início de utilização
-- Controle de KM inicial/final
-- Tempo de viagem
-- Revisão operacional
-- Finalização de utilização
-
----
-
-# 🛠️ Tecnologias
-
-- Next.js 16
-- React
-- TypeScript
-- TailwindCSS
-- Leaflet
-- React Leaflet
-- Supabase
-- Deno
-
----
-
-# 📂 Estrutura do Projeto
-
-```bash
-app/
-components/
-constants/
-hooks/
-lib/
-public/
-services/
-supabase/
-types/
+```
+Motorista                          Admin
+   │                                 │
+   ├─ Escaneia QR Code               ├─ Vê mapa ao vivo
+   ├─ Registra KM                    ├─ Acompanha KPIs
+   ├─ Viagem offline                 ├─ Gerencia motoristas
+   ├─ Sync automático ──────────────►├─ Gerencia veículos
+   └─ Finaliza viagem                └─ Exporta relatórios
 ```
 
 ---
 
-# 🚀 Como rodar o projeto
+## Stack
 
-## 1️⃣ Clonar o repositório
-
-```bash
-git clone https://github.com/SEU-USUARIO/sf-frota.git
-```
+|              |                                    |
+| ------------ | ---------------------------------- |
+| Framework    | Next.js 16 + React 19 + TypeScript |
+| Estilo       | Tailwind CSS v4 + shadcn/ui        |
+| Banco local  | Dexie (IndexedDB)                  |
+| Banco remoto | Supabase (PostgreSQL)              |
+| Auth         | JWT + bcrypt                       |
+| Mapas        | Leaflet + React Leaflet            |
+| Gráficos     | Recharts                           |
+| Exportação   | jsPDF + xlsx                       |
 
 ---
 
-## 2️⃣ Entrar na pasta
+## Pré-requisitos
+
+- Node.js 18+
+- Conta no [Supabase](https://supabase.com)
+
+---
+
+## Instalação
+
+**1. Clone o repositório**
 
 ```bash
+git clone https://github.com/seu-usuario/sf-frota.git
 cd sf-frota
 ```
 
----
-
-## 3️⃣ Instalar dependências
+**2. Instale as dependências**
 
 ```bash
 npm install
 ```
 
----
+**3. Configure as variáveis de ambiente**
 
-## 4️⃣ Rodar ambiente de desenvolvimento
+Crie um arquivo `.env.local` na raiz:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+SUPABASE_JWT_SECRET=seu-jwt-secret
+```
+
+> O `SUPABASE_JWT_SECRET` está em **Supabase → Settings → API → JWT Secret**.
+
+**4. Configure o banco de dados**
+
+Execute no SQL Editor do Supabase:
+
+```sql
+-- Linha inicial de configurações
+INSERT INTO settings (id, company_name, session_timeout, allow_delete_drivers, allow_delete_vehicles, allow_delete_trips)
+VALUES (1, 'SF Frota', '60', true, true, false)
+ON CONFLICT (id) DO NOTHING;
+
+-- Índice que impede dois motoristas usarem o mesmo veículo simultaneamente
+CREATE UNIQUE INDEX IF NOT EXISTS one_active_trip_per_vehicle
+  ON trips (vehicle_id)
+  WHERE status = 'Em andamento';
+```
+
+**5. Crie o primeiro administrador**
+
+Gere um hash bcrypt do PIN escolhido e insira no banco:
+
+```sql
+INSERT INTO drivers (id, name, registration, pin_hash, role, license, status)
+VALUES (
+  gen_random_uuid(),
+  'Admin',
+  'admin',
+  '$2b$12$...', -- hash bcrypt do seu PIN
+  'admin',
+  'B',
+  'Ativo'
+);
+```
+
+**6. Rode em desenvolvimento**
 
 ```bash
 npm run dev
 ```
 
+Acesse em `http://localhost:3000`.
+
 ---
 
-# 🌐 Rodar na rede local (celular/outro dispositivo)
+## Acessar pelo celular (desenvolvimento)
 
 ```bash
-npm run dev -- -H 0.0.0.0
+npm run dev -- --hostname 0.0.0.0
 ```
 
----
+Acesse pelo IP da máquina na rede local: `http://192.168.x.x:3000`
 
-# ⚠️ Next.js 16 — allowedDevOrigins
-
-Para acessar pela rede local:
-
-```ts
-// next.config.ts
-
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  allowedDevOrigins: ["SEU-IP-LOCAL"],
-};
-
-export default nextConfig;
-```
-
-Exemplo:
-
-```ts
-allowedDevOrigins: ["192.000.0.00"];
-```
+> A câmera para o QR Code só funciona em HTTPS. Em desenvolvimento, use o Chrome com a flag `chrome://flags/#unsafely-treat-insecure-origin-as-secure`.
 
 ---
 
-# 📦 Build de produção
+## Deploy (Vercel)
 
-```bash
-npm run build
-```
+1. Faça push do repositório para o GitHub
+2. Importe o projeto em [vercel.com](https://vercel.com)
+3. Configure as variáveis de ambiente no painel da Vercel
+4. Deploy automático a cada push na branch `main`
 
----
-
-# ▶️ Rodar produção
-
-```bash
-npm start
-```
+Em produção o HTTPS é automático — câmera, PWA e instalação na tela inicial funcionam sem configuração extra.
 
 ---
 
-# ✅ Funcionalidades atuais
+## Instalar como PWA
 
-## Administração
-
-- Cadastro de veículos
-- Edição de veículos
-- Controle de status
-- Gestão de motoristas
-- Controle de CNH
-- Rastreamento no mapa
-- Relatórios operacionais
-
-## Motorista
-
-- Fluxo de utilização
-- Controle de KM
-- Controle de tempo
-- Revisão final da viagem
+Em produção (HTTPS), acesse pelo Chrome no celular e toque em **"Adicionar à tela inicial"** no menu do navegador. O app abre em modo standalone, sem barra de endereço, igual a um app nativo.
 
 ---
 
-# 📌 Roadmap
+## Funcionalidades
 
-## Próximos passos
+**Painel administrativo**
 
-- Tracking em tempo real
-- Fallback caso não aceite localização
-- Refino de UX
+- Dashboard com KPIs em tempo real
+- Mapa de rastreamento ao vivo
+- Gestão de veículos (cadastro, edição, QR Code, status)
+- Gestão de motoristas (cadastro, edição, PIN)
+- Histórico de utilizações com filtros
+- Relatórios exportáveis em PDF e Excel
+- Configurações da empresa e do sistema
+- Backup e restauração do banco local
+
+**Aplicação do motorista**
+
+- Login offline com sessão cacheada
+- Escaneamento de QR Code do veículo
+- Registro de KM inicial e final
+- Rastreamento GPS durante a viagem
+- Sincronização automática em background
+- Funciona sem internet — sincroniza quando reconectar
 
 ---
 
-# 🧠 Objetivo do projeto
-
-O projeto foi desenvolvido como estudo prático de:
-
-- arquitetura frontend
-- componentização
-- TypeScript
-- modelagem operacional
-- UX
-- aplicações SaaS
-- fluxo operacional de frota
-
----
-
-# 👨‍💻 Autor
+## Autor
 
 Victor Macedo

@@ -10,7 +10,7 @@ import { Table } from "@/components/admin/table";
 import { TableRow } from "@/components/admin/tablerow";
 import { TableCell } from "@/components/admin/tablecell";
 import { TrackingDrawer } from "@/components/admin/trackingdrawer";
-import { getActiveTrips } from "@/services/trackingService";
+import { getActiveTrips, getTodayStats } from "@/services/trackingService";
 
 import type { TrackingTrip } from "@/types/tracking";
 
@@ -31,13 +31,12 @@ export default function TrackingPage() {
 
   // useLiveQuery observa o Dexie em tempo real — sem setInterval
   const trips = useLiveQuery(() => getActiveTrips(), []) ?? [];
-
+  const todayStats = useLiveQuery(() => getTodayStats(), []) ?? {
+    totalTrips: 0,
+    totalKm: 0,
+  };
   const activeVehicles = trips.length;
   const activeDrivers = new Set(trips.map((t) => t.driverName)).size;
-  const todayTrips = trips.filter(
-    (t) => new Date(t.startedAt).toDateString() === new Date().toDateString(),
-  ).length;
-  const todayKm = trips.reduce((acc, t) => acc + (t.distance ?? 0), 0);
 
   return (
     <div className="space-y-8">
@@ -49,8 +48,11 @@ export default function TrackingPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
         <KpiCard title="Veículos em uso" value={String(activeVehicles)} />
         <KpiCard title="Motoristas ativos" value={String(activeDrivers)} />
-        <KpiCard title="Usos hoje" value={String(todayTrips)} />
-        <KpiCard title="KM hoje" value={`${todayKm} km`} />
+        <KpiCard title="Usos hoje" value={String(todayStats.totalTrips)} />
+        <KpiCard
+          title="KM hoje"
+          value={`${todayStats.totalKm.toFixed(1)} km`}
+        />
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-zinc-800 mb-8">

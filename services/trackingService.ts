@@ -10,7 +10,6 @@ export async function getActiveTrips(): Promise<TrackingTrip[]> {
 
     let statusLabel: string = TRACKING_STATUS.STOPPED;
     if (speed > 5) statusLabel = TRACKING_STATUS.EN_ROUTE;
-
     return {
       ...trip,
       lat: trip.lat,
@@ -19,4 +18,23 @@ export async function getActiveTrips(): Promise<TrackingTrip[]> {
       statusLabel,
     };
   });
+}
+
+export async function getTodayStats() {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayStartISO = todayStart.toISOString();
+
+  const todayTrips = await db.trips
+    .filter(
+      (t) =>
+        t.startedAt >= todayStartISO &&
+        (t.status === "Em andamento" || t.status === "Finalizada"),
+    )
+    .toArray();
+
+  const totalTrips = todayTrips.length;
+  const totalKm = todayTrips.reduce((acc, t) => acc + (t.distance ?? 0), 0);
+
+  return { totalTrips, totalKm };
 }
