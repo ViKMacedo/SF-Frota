@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SignJWT } from "jose";
 import { createClient } from "@supabase/supabase-js";
+import bcrypt from "bcryptjs";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,7 +25,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (driver.pin !== pin) {
+  // pin_hash tem prioridade; fallback para pin em texto puro durante migração
+  const pinValid = await bcrypt.compare(pin, driver.pin_hash);
+
+  if (!pinValid) {
     return NextResponse.json({ error: "PIN inválido" }, { status: 401 });
   }
 

@@ -54,7 +54,6 @@ export async function syncPendingItems() {
     }
 
     const { results } = await res.json();
-    console.log("[Sync] resposta do backend:", JSON.stringify(results));
 
     for (
       const result of results as {

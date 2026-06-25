@@ -203,7 +203,6 @@ async function processDriver(item: DriverQueueItem) {
         name: payload.name,
         registration: payload.registration,
         pin_hash,
-        pin: payload.pin ?? "migrated",
         role: payload.role,
         license: payload.license,
         status: payload.status,

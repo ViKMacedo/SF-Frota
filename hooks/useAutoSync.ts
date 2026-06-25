@@ -26,14 +26,12 @@ export function useAutoSync() {
   // Sync ao reconectar
   useEffect(() => {
     const handleOnline = async () => {
-      console.log("[Sync] Internet restaurada. Sincronizando...");
       await runSync();
     };
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
   }, []);
 
-  // Sync periódico a cada 30s
   useEffect(() => {
     const interval = setInterval(() => {
       if (navigator.onLine) runSync();
