@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import {
   BarChart,
   Bar,
@@ -21,41 +22,34 @@ import { getReportsData } from "@/services/reportService";
 import { exportTripsToPDF, exportTripsToExcel } from "@/services/exportService";
 
 import type { Trip } from "@/lib/db";
+import { Button } from "@/components/ui/button";
+
+const EMPTY_REPORT = {
+  stats: {
+    totalTrips: 0,
+    finishedTrips: 0,
+    activeTrips: 0,
+    totalKm: 0,
+    averageKm: 0,
+  },
+  kmPerVehicle: [] as { name: string; km: number }[],
+  tripsPerDriver: [] as { name: string; trips: number }[],
+  trips: [] as Trip[],
+};
 
 export default function ReportsPage() {
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("Todos");
   const [driverFilter, setDriverFilter] = useState("Todos");
   const [vehicleFilter, setVehicleFilter] = useState("Todos");
-  const [reportData, setReportData] = useState({
-    stats: {
-      totalTrips: 0,
-      finishedTrips: 0,
-      activeTrips: 0,
-      totalKm: 0,
-      averageKm: 0,
-    },
-    kmPerVehicle: [] as {
-      name: string;
-      km: number;
-    }[],
-    tripsPerDriver: [] as {
-      name: string;
-      trips: number;
-    }[],
-    recentTrips: [] as Trip[],
-  });
-  useEffect(() => {
-    async function fetchReports() {
-      const data = await getReportsData();
-      setReportData(data);
-      setLoading(false);
-    }
-    fetchReports();
-  }, []);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  // useLiveQuery observa o Dexie e recalcula sempre que trips/vehicles/drivers mudam
+  const reportData = useLiveQuery(() => getReportsData(), []) ?? EMPTY_REPORT;
+  const loading = reportData === EMPTY_REPORT && reportData.trips.length === 0;
 
   const filteredTrips = useMemo(() => {
-    return reportData.recentTrips.filter((trip) => {
+    return reportData.trips.filter((trip) => {
       const statusMatch =
         statusFilter === "Todos" || trip.status === statusFilter;
       const driverMatch =
@@ -64,7 +58,7 @@ export default function ReportsPage() {
         vehicleFilter === "Todos" || trip.vehicleModel === vehicleFilter;
       return statusMatch && driverMatch && vehicleMatch;
     });
-  }, [reportData.recentTrips, statusFilter, driverFilter, vehicleFilter]);
+  }, [reportData.trips, statusFilter, driverFilter, vehicleFilter]);
 
   const filteredStats = useMemo(() => {
     const totalTrips = filteredTrips.length;
@@ -111,6 +105,11 @@ export default function ReportsPage() {
       trips,
     }));
   }, [filteredTrips]);
+  const totalPages = Math.ceil(filteredTrips.length / PAGE_SIZE);
+  const paginatedTrips = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredTrips.slice(start, start + PAGE_SIZE);
+  }, [filteredTrips, page]);
 
   if (loading) {
     return (
@@ -189,11 +188,11 @@ export default function ReportsPage() {
             "
           >
             <option>Todos</option>
-            {[
-              ...new Set(reportData.recentTrips.map((trip) => trip.driverName)),
-            ].map((driver) => (
-              <option key={driver}>{driver}</option>
-            ))}
+            {[...new Set(reportData.trips.map((trip) => trip.driverName))].map(
+              (driver) => (
+                <option key={driver}>{driver}</option>
+              ),
+            )}
           </select>
 
           {/* Veículo */}
@@ -216,9 +215,7 @@ export default function ReportsPage() {
           >
             <option>Todos</option>
             {[
-              ...new Set(
-                reportData.recentTrips.map((trip) => trip.vehicleModel),
-              ),
+              ...new Set(reportData.trips.map((trip) => trip.vehicleModel)),
             ].map((vehicle) => (
               <option key={vehicle}>{vehicle}</option>
             ))}
@@ -289,7 +286,7 @@ export default function ReportsPage() {
 
       {/* Tabela */}
       <Table headers={["Motorista", "Veículo", "KM", "Status"]}>
-        {filteredTrips.map((trip) => (
+        {paginatedTrips.map((trip) => (
           <TableRow key={trip.id}>
             <TableCell className="font-medium">{trip.driverName}</TableCell>
             <TableCell>{trip.vehicleModel}</TableCell>
@@ -302,6 +299,70 @@ export default function ReportsPage() {
           </TableRow>
         ))}
       </Table>
+      <div className="flex items-center justify-center gap-3 mt-6">
+        <Button
+          variant="outline"
+          disabled={page === 1}
+          onClick={() => setPage((p) => p - 1)}
+          className="
+      h-10
+      px-4
+      rounded-xl
+      border-zinc-700
+      bg-zinc-900
+      text-zinc-300
+      hover:bg-zinc-800
+      hover:text-white
+      disabled:opacity-40
+      disabled:cursor-not-allowed
+      transition-all
+    "
+        >
+          ← Anterior
+        </Button>
+
+        <div
+          className="
+      min-w-[120px]
+      h-10
+      px-4
+      flex
+      items-center
+      justify-center
+      rounded-xl
+      bg-zinc-900
+      border
+      border-zinc-800
+      text-sm
+      font-medium
+      text-zinc-300
+    "
+        >
+          Página {page} de {totalPages}
+        </div>
+
+        <Button
+          variant="outline"
+          disabled={page === totalPages}
+          onClick={() => setPage((p) => p + 1)}
+          className="
+      h-10
+      px-4
+      rounded-xl
+      border-zinc-700
+      bg-zinc-900
+      text-zinc-300
+      hover:bg-indigo-600
+      hover:border-indigo-600
+      hover:text-white
+      disabled:opacity-40
+      disabled:cursor-not-allowed
+      transition-all
+    "
+        >
+          Próxima →
+        </Button>
+      </div>
     </div>
   );
 }

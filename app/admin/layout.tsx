@@ -5,8 +5,9 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import { Sidebar } from "@/components/admin/sidebar";
-import { getStorage, removeStorage } from "@/lib/storage";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { useAdminPull } from "@/hooks/useAdminPull";
+import { clearSession, getSession } from "@/services/sessionService";
 
 type User = {
   name: string;
@@ -19,10 +20,10 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   useAuthGuard("admin");
+  useAdminPull();
 
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
@@ -38,19 +39,16 @@ export default function AdminLayout({
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-    const storedUser = getStorage("user");
-    setUser(storedUser);
+    getSession().then((session) => {
+      if (session) {
+        setUser({ name: session.name, role: session.role });
+      }
+    });
   }, []);
 
-  function handleLogout() {
-    removeStorage("user");
+  async function handleLogout() {
+    await clearSession();
     router.push("/login");
-  }
-
-  if (!mounted) {
-    return null;
   }
 
   return (

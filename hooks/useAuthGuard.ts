@@ -1,25 +1,40 @@
-"use client";
-
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { clearSession, getSession } from "@/services/sessionService";
 
-import { getStorage } from "@/lib/storage";
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true; // token malformado — trata como expirado
+  }
+}
 
-type Role = "admin" | "driver";
-
-export function useAuthGuard(role: Role) {
+export function useAuthGuard(requiredRole: "admin" | "driver") {
   const router = useRouter();
 
   useEffect(() => {
-    const user = getStorage("user");
+    async function check() {
+      const session = await getSession();
 
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
 
-    if (user.role !== role) {
-      router.replace("/login");
+      if (isTokenExpired(session.token)) {
+        await clearSession();
+        router.replace("/login?expired=true");
+        return;
+      }
+
+      if (session.role !== requiredRole) {
+        router.replace(
+          session.role === "admin" ? "/admin/dashboard" : "/driver/scan",
+        );
+      }
     }
-  }, [router, role]);
+    check();
+  }, [requiredRole, router]);
 }

@@ -1,5 +1,7 @@
 export const TRACKING_STATUS = {
-  EN_ROUTE: "Em rota",
   STOPPED: "Parado",
-  FINISHING: "Finalizando",
+  EN_ROUTE: "Em rota",
 } as const;
+
+export type TrackingStatus =
+  (typeof TRACKING_STATUS)[keyof typeof TRACKING_STATUS];

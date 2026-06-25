@@ -1,10 +1,12 @@
 import { db, type Vehicle, VehicleStatus } from "@/lib/db";
+import { addVehicleToQueue } from "@/services/syncQueueService";
+import { generateId } from "@/lib/generateId";
 
 export async function getVehicles(): Promise<Vehicle[]> {
   return await db.vehicles.toArray();
 }
 
-export async function getVehicleById(id: number): Promise<Vehicle | undefined> {
+export async function getVehicleById(id: string): Promise<Vehicle | undefined> {
   return await db.vehicles.get(id);
 }
 
@@ -13,19 +15,34 @@ export async function getVehicleByPlate(
 ): Promise<Vehicle | undefined> {
   return await db.vehicles.where("plate").equals(plate).first();
 }
-export async function updateVehicleStatus(id: number, status: VehicleStatus) {
+export async function updateVehicleStatus(id: string, status: VehicleStatus) {
   await db.vehicles.update(id, {
     status,
   });
 }
 export async function createVehicle(vehicle: Omit<Vehicle, "id">) {
-  return await db.vehicles.add(vehicle);
+  const existing = await getVehicleByPlate(vehicle.plate);
+  if (existing) {
+    throw new Error(`Já existe um veículo com a placa ${vehicle.plate}.`);
+  }
+
+  const newVehicle: Vehicle = {
+    ...vehicle,
+    id: generateId(),
+  };
+
+  await db.vehicles.add(newVehicle);
+  await addVehicleToQueue("create", newVehicle);
 }
-export async function updateVehicle(id: number, vehicle: Partial<Vehicle>) {
-  return await db.vehicles.update(id, vehicle);
+export async function updateVehicle(id: string, vehicle: Partial<Vehicle>) {
+  await db.vehicles.update(id, vehicle);
+  const updatedVehicle = await db.vehicles.get(id);
+  if (updatedVehicle) {
+    await addVehicleToQueue("update", updatedVehicle);
+  }
 }
-export async function deleteVehicle(id: number) {
-  return await db.vehicles.delete(id);
+export async function deleteVehicle(id: string) {
+  await updateVehicle(id, { status: "Inativo" });
 }
 export type VehicleWithUsage = Vehicle & {
   lastDriver: string;

@@ -20,7 +20,7 @@ export async function exportBackup() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `sf-frota-backup-${Date.now()}.json`;
+  a.download = `sf-frota-backup-${crypto.randomUUID()}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }

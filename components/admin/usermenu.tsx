@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { getStorage, removeStorage } from "@/lib/storage";
+import { clearSession, getSession } from "@/services/sessionService";
+import { useEffect, useState } from "react";
 
 type User = {
   name: string;
@@ -10,9 +11,20 @@ type User = {
 
 export function UserMenu() {
   const router = useRouter();
-  const user = getStorage("user") as User | null;
-  function handleLogout() {
-    removeStorage("user");
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    getSession().then((session) => {
+      if (session) {
+        setUser({
+          name: session.name,
+          role: session.role,
+        });
+      }
+    });
+  }, []);
+  async function handleLogout() {
+    await clearSession();
     router.push("/login");
   }
   if (!user) return null;

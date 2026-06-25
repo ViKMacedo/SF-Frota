@@ -1,40 +1,40 @@
 import { db } from "@/lib/db";
-
 import type { TrackingTrip } from "@/types/tracking";
 import { TRACKING_STATUS } from "@/constants/tracking";
 
 export async function getActiveTrips(): Promise<TrackingTrip[]> {
   const trips = await db.trips.where("status").equals("Em andamento").toArray();
-  const updatedTrips: TrackingTrip[] = [];
-  for (const trip of trips) {
-    const currentLat = trip.lat ?? -24.021347;
-    const currentLng = trip.lng ?? -48.362951;
-    const speed = Math.floor(Math.random() * 90);
-    const lat = currentLat + (Math.random() - 0.5) * 0.001;
-    const lng = currentLng + (Math.random() - 0.5) * 0.001;
+
+  return trips.map((trip) => {
+    const speed = trip.speed ?? 0;
+
     let statusLabel: string = TRACKING_STATUS.STOPPED;
-    if (speed > 5) {
-      statusLabel = TRACKING_STATUS.EN_ROUTE;
-    }
-    if (speed > 70) {
-      statusLabel = TRACKING_STATUS.FINISHING;
-    }
-    const updatedTrip: TrackingTrip = {
+    if (speed > 5) statusLabel = TRACKING_STATUS.EN_ROUTE;
+    return {
       ...trip,
-      lat,
-      lng,
+      lat: trip.lat,
+      lng: trip.lng,
       speed,
       statusLabel,
     };
-    if (trip.id) {
-      await db.trips.update(trip.id, {
-        lat,
-        lng,
-        speed,
-        statusLabel,
-      });
-    }
-    updatedTrips.push(updatedTrip);
-  }
-  return updatedTrips;
+  });
+}
+
+export async function getTodayStats() {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayStartISO = todayStart.toISOString();
+
+  const todayTrips = await db.trips
+    .filter(
+      (t) =>
+        t.startedAt >= todayStartISO &&
+        (t.status === "Em andamento" || t.status === "Finalizada"),
+    )
+    .toArray();
+
+  const totalTrips = todayTrips.length;
+  const totalKm = todayTrips.reduce((acc, t) => acc + (t.distance ?? 0), 0);
+
+  return { totalTrips, totalKm };
 }

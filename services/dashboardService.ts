@@ -27,5 +27,9 @@ export async function getDashboardStats() {
 }
 export async function getRecentTrips() {
   const trips = await db.trips.reverse().sortBy("startedAt");
-  return trips.slice(0, 5);
+  return trips.sort(
+    (a, b) =>
+      new Date(b.startedAt).getTime() -
+      new Date(a.startedAt).getTime(),
+  );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/admin/modal";
@@ -21,14 +22,15 @@ import {
   updateDriver,
   deleteDriver,
 } from "@/services/driverService";
+import { syncPendingItems } from "@/services/syncService";
 
 export default function DriversPage() {
-  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [showInactive, setShowInactive] = useState(false);
   const [pin, setPin] = useState("");
   const [role, setRole] = useState<"admin" | "driver">("driver");
   const [open, setOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [registration, setRegistration] = useState("");
   const [license, setLicense] = useState<"A" | "B" | "C" | "D" | "E" | "AB">(
@@ -37,33 +39,35 @@ export default function DriversPage() {
   const [status, setStatus] = useState<"Ativo" | "Afastado" | "Férias">(
     "Ativo",
   );
-  useEffect(() => {
-    loadDrivers();
-  }, []);
-  async function loadDrivers() {
-    const data = await getDrivers();
-
-    setDrivers(data);
-  }
+  const drivers = useLiveQuery(async () => await getDrivers(), [], []);
   async function handleCreateDriver() {
-    if (!name || !registration || !pin || !license) {
+    // DEPOIS
+    if (!name || !registration || !license) {
       return;
     }
-    const driverData = {
-      name,
-      registration,
-      pin,
-      role,
-      license,
-      status,
-    };
+    if (!editingId && !pin) {
+      return;
+    }
+    if (pin && !/^\d{4}$/.test(pin)) {
+      alert("PIN deve conter apenas 4 dígitos.");
+      return;
+    }
+
     if (editingId !== null) {
+      const driverData: Partial<Driver> = {
+        name,
+        registration,
+        role,
+        license,
+        status,
+      };
+      if (pin) driverData.pin = pin;
       await updateDriver(editingId, driverData);
     } else {
-      await createDriver(driverData);
+      await createDriver({ name, registration, pin, role, license, status });
     }
-    await loadDrivers();
     resetForm();
+    syncPendingItems();
   }
 
   function resetForm() {
@@ -81,14 +85,23 @@ export default function DriversPage() {
     setEditingId(driver.id ?? null);
     setName(driver.name);
     setRegistration(driver.registration);
-    setPin(driver.pin);
+    setPin("");
     setRole(driver.role ?? "driver");
     setLicense(driver.license);
     setStatus(driver.status);
     setOpen(true);
     setOpenMenuId(null);
   }
-
+  const ITEMS_PER_PAGE = 10;
+  const [page, setPage] = useState(1);
+  const filteredDrivers = (drivers ?? []).filter(
+    (d) => showInactive || d.status !== "Afastado",
+  );
+  const totalPages = Math.ceil(filteredDrivers.length / ITEMS_PER_PAGE);
+  const paginatedDrivers = filteredDrivers.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE,
+  );
   return (
     <div>
       {/* Header */}
@@ -102,12 +115,25 @@ export default function DriversPage() {
         </Button>
       </div>
 
+      {/* Toggle inativos */}
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          onClick={() => setShowInactive((v) => !v)}
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showInactive ? "bg-indigo-600" : "bg-zinc-300"}`}
+        >
+          <span
+            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${showInactive ? "translate-x-4" : "translate-x-1"}`}
+          />
+        </button>
+        <span className="text-sm text-zinc-500">Mostrar afastados</span>
+      </div>
+
       {/* Table */}
       <div className="overflow-x-auto no-scrollbar">
         <Table
           headers={["Nome", "Matrícula", "Perfil", "CNH", "Status", "Ações"]}
         >
-          {drivers.map((driver) => (
+          {paginatedDrivers.map((driver) => (
             <TableRow key={driver.id}>
               <TableCell className="font-medium">{driver.name}</TableCell>
               <TableCell>{driver.registration}</TableCell>
@@ -141,7 +167,6 @@ export default function DriversPage() {
                       return;
                     }
                     await deleteDriver(driver.id);
-                    await loadDrivers();
                     setOpenMenuId(null);
                   }}
                 />
@@ -149,6 +174,53 @@ export default function DriversPage() {
             </TableRow>
           ))}
         </Table>
+        <div className="flex items-center justify-between mt-6">
+          <p className="text-sm text-zinc-500">
+            Mostrando{" "}
+            {Math.min((page - 1) * ITEMS_PER_PAGE + 1, filteredDrivers.length)}
+            {" - "}
+            {Math.min(page * ITEMS_PER_PAGE, filteredDrivers.length)}
+            {" de "}
+            {filteredDrivers.length}
+            {" motoristas"}
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="
+        px-4 py-2 rounded-xl
+        bg-zinc-800 text-zinc-300
+        hover:bg-zinc-700
+        disabled:opacity-40
+        disabled:cursor-not-allowed
+        transition
+      "
+            >
+              ←
+            </button>
+
+            <span className="px-4 py-2 text-sm font-medium text-zinc-400">
+              Página {page} de {totalPages || 1}
+            </span>
+
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="
+        px-4 py-2 rounded-xl
+        bg-indigo-600 text-white
+        hover:bg-indigo-500
+        disabled:opacity-40
+        disabled:cursor-not-allowed
+        transition
+      "
+            >
+              →
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Modal */}
@@ -175,10 +247,12 @@ export default function DriversPage() {
             />
           </div>
           <div className="space-y-2">
-            <FormLabel>PIN</FormLabel>
+            <FormLabel>
+              PIN{editingId ? " (deixe em branco para não alterar)" : ""}
+            </FormLabel>
             <FormInput
               type="password"
-              placeholder="1234"
+              placeholder={editingId ? "Novo PIN (opcional)" : "1234"}
               value={pin}
               maxLength={4}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}

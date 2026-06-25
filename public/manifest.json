@@ -1,22 +1,26 @@
 {
-  "name": "SF Frota Driver",
-  "short_name": "SF Driver",
-  "description": "Aplicação operacional do motorista",
-  "start_url": "/driver/scan",
+  "name": "SF Frota",
+  "short_name": "SF Frota",
+  "description": "Sistema operacional de frota",
+  "start_url": "/login",
   "display": "standalone",
   "background_color": "#09090b",
   "theme_color": "#09090b",
   "orientation": "portrait",
+  "scope": "/",
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
