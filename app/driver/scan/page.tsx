@@ -7,6 +7,7 @@ import { MobileLayout } from "@/components/layout/mobile-layout";
 import { QRScanner } from "@/components/driver/qrscanner";
 import { Toast } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
+import { clearSession } from "@/services/sessionService";
 
 import { getVehicleById } from "@/services/vehicleService";
 import { getActiveTrip } from "@/services/tripService";
@@ -25,6 +26,15 @@ export default function DriverScanPage() {
     }
     checkActiveTrip();
   }, [router]);
+  useEffect(() => {
+    const handlePageHide = () => {
+      // Marca a página como não cacheável no bfcache
+      window.onunload = () => {};
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+    return () => window.removeEventListener("pagehide", handlePageHide);
+  }, []);
 
   const handleScanSuccess = useCallback(
     async (decodedText: string) => {
@@ -62,7 +72,10 @@ export default function DriverScanPage() {
       <Toast toast={toast} onClose={clearToast} />
 
       <button
-        onClick={() => router.back()}
+        onClick={async () => {
+          await clearSession();
+          router.replace("/login");
+        }}
         className="text-sm text-indigo-300 mb-8 self-start"
       >
         ← Voltar

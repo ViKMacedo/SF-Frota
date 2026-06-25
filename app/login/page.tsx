@@ -12,10 +12,30 @@ import { Toast } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
 
 import { db } from "@/lib/db";
-import { createSession } from "@/services/sessionService";
+import {
+  clearSession,
+  createSession,
+  getSession,
+} from "@/services/sessionService";
 import { bootstrapDatabase } from "@/services/bootstrapService";
+import bcrypt from "bcryptjs";
 
 function LoginForm() {
+  useEffect(() => {
+    // Limpa ao montar normalmente
+    clearSession();
+
+    // Limpa quando restaurado do bfcache (gesto voltar no Chrome Android)
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        clearSession();
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
+
   const session = useLiveQuery(() => db.sessions.get("current"), []);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -43,26 +63,92 @@ function LoginForm() {
 
     setLoading(true);
     try {
+      // Tenta login online primeiro
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration: name, pin }),
       });
 
-      const data = await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        await createSession(data.driver, data.token, pin);
+        await bootstrapDatabase(data.token);
 
-      if (!res.ok) {
+        if (data.driver.role === "admin") {
+          router.push("/admin/dashboard");
+        } else {
+          router.push("/driver/scan");
+        }
+        return;
+      }
+
+      // Online mas credenciais erradas
+      if (res.status === 401) {
+        const data = await res.json();
         showToast(data.error ?? "Usuário ou PIN inválidos", "error");
         return;
       }
 
-      await createSession(data.driver, data.token);
-      await bootstrapDatabase(data.token);
+      // tentar offline
+      throw new Error("server_error");
     } catch {
-      showToast("Falha de conexão. Tente novamente.", "error");
+      // tenta sessão cacheada
+      await tryOfflineLogin(name, pin);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function tryOfflineLogin(registration: string, pin: string) {
+    const session = await getSession();
+
+    if (!session?.pinHash || !session?.registration) {
+      showToast(
+        "Sem conexão e nenhuma sessão salva para este dispositivo.",
+        "error",
+      );
+      return;
+    }
+
+    if (session.registration !== registration) {
+      showToast(
+        "Sem conexão. Apenas o último usuário logado pode entrar offline.",
+        "error",
+      );
+      return;
+    }
+
+    const pinValid = await bcrypt.compare(pin, session.pinHash);
+    if (!pinValid) {
+      showToast("PIN inválido.", "error");
+      return;
+    }
+
+    // Verifica se o JWT ainda é válido
+    try {
+      const payload = JSON.parse(atob(session.token.split(".")[1]));
+      if (payload.exp * 1000 < Date.now()) {
+        showToast(
+          "Sessão expirada. Conecte-se à internet para renovar.",
+          "error",
+        );
+        return;
+      }
+    } catch {
+      showToast("Sessão inválida. Conecte-se à internet.", "error");
+      return;
+    }
+
+    // Login offline aprovado — não faz bootstrap (sem internet)
+    showToast("Entrando no modo offline.", "warning");
+    setTimeout(() => {
+      if (session.role === "admin") {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/driver/scan");
+      }
+    }, 800);
   }
 
   return (

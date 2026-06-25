@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
+import { ServiceWorkerRegister } from "@/components/serviceWorkerRegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
   title: "SF Frota",
   description: "Sistema operacional de frota",
   manifest: "/manifest.json",
-  icons: { icon: "/app/favicon.ico" },
+  icons: { icon: "/favicon.ico" },
 };
 
 export default function RootLayout({
@@ -29,8 +31,10 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"> {children}</body>
+      <body className="min-h-full flex flex-col">
+        <ServiceWorkerRegister />
+        {children}
+      </body>
     </html>
   );
 }
-import "leaflet/dist/leaflet.css";

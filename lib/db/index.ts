@@ -151,4 +151,6 @@ export interface Session {
   role: "admin" | "driver";
   loginAt: string;
   token: string;
+  pinHash?: string;
+  registration?: string;
 }
