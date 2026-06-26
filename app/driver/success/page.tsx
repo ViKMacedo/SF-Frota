@@ -1,59 +1,74 @@
 "use client";
 
-import { getStorage } from "@/lib/storage";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import { MobileLayout } from "@/components/layout/mobile-layout";
 import { Button } from "@/components/ui/button";
 
-import { useRouter } from "next/navigation";
+import { getLastFinishedTrip } from "@/services/tripService";
+import { clearSession } from "@/services/sessionService";
+import type { Trip } from "@/lib/db";
 
 export default function DriverSuccessPage() {
   const router = useRouter();
-  const trip = getStorage("trip");
-  const totalKm = (trip?.finalKm || 0) - (trip?.initialKm || 0);
-  const startedAt = new Date(trip?.startedAt || "");
-  const endedAt = new Date(trip?.endedAt || "");
-  const diffMs = endedAt.getTime() - startedAt.getTime();
-  const totalMinutes = Math.floor(diffMs / 1000 / 60);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  const formattedTime = `${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}min`;
+  const [trip, setTrip] = useState<Trip | null>(null);
+
+  useEffect(() => {
+    async function loadTrip() {
+      const finishedTrip = await getLastFinishedTrip();
+      if (!finishedTrip) {
+        router.push("/driver/scan");
+        return;
+      }
+      setTrip(finishedTrip);
+    }
+    loadTrip();
+  }, [router]);
+
+  async function handleLogout() {
+    await clearSession();
+    router.push("/login");
+  }
+
+  if (!trip) return null;
 
   return (
-    <main className="min-h-screen bg-zinc-950 max-w-sm mx-auto flex flex-col items-center justify-center p-6 text-center text-white">
-      {/* Success Icon */}
-      <div className="w-32 h-32 rounded-full bg-green-100 flex items-center justify-center text-5xl text-green-600 mb-10">
-        ✓
+    <MobileLayout className="bg-zinc-950">
+      <div className="flex-1 flex flex-col items-center justify-center text-center">
+        <div className="w-24 h-24 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-5xl text-green-400 mb-8">
+          ✓
+        </div>
+
+        <h1 className="text-3xl font-bold text-white mb-2">Uso finalizado</h1>
+        <p className="text-zinc-400 text-sm mb-10">
+          A utilização foi registrada com sucesso.
+        </p>
+
+        <div className="w-full rounded-3xl bg-zinc-900 border border-zinc-800 p-5 mb-10 text-left space-y-4">
+          {[
+            { label: "Veículo", value: trip.vehiclePlate },
+            { label: "Motorista", value: trip.driverName },
+            { label: "KM rodado", value: `${trip.distance ?? 0} km` },
+            { label: "Tempo", value: trip.duration ?? "—" },
+            { label: "KM inicial", value: String(trip.startKm) },
+            { label: "KM final", value: String(trip.endKm ?? "—") },
+          ].map(({ label, value }) => (
+            <div key={label} className="flex items-center justify-between">
+              <span className="text-zinc-400 text-sm">{label}</span>
+              <span className="text-white font-semibold text-sm">{value}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Title */}
-      <h1 className="text-3xl font-bold mb-3">Uso finalizado</h1>
-      {/* Description */}
-      <p className="text-zinc-400 mb-10 max-w-xs">
-        A utilização do veículo foi registrada com sucesso.
-      </p>
-
-      {/* Summary */}
-      <div className="w-full rounded-3xl bg-zinc-900 border border-zinc-800 p-6 mb-10">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-zinc-400">Veículo</span>
-          <span className="font-semibold">ABC-1234</span>
-        </div>
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-zinc-400">KM rodado</span>
-          <span className="font-semibold">{totalKm} km</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-zinc-400">Tempo</span>
-          <span className="font-semibold">{formattedTime}</span>
-        </div>
-      </div>
-
-      {/* Button */}
       <Button
-        onClick={() => router.push("/login")}
+        onClick={handleLogout}
+        variant="secondary"
         className="w-full h-12 rounded-2xl text-base font-semibold"
       >
-        Voltar ao início
+        Sair
       </Button>
-    </main>
+    </MobileLayout>
   );
 }

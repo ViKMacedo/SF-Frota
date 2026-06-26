@@ -1,106 +1,139 @@
 "use client";
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useRouter } from "next/navigation";
 import { MobileLayout } from "@/components/layout/mobile-layout";
-import { getStorage, saveStorage } from "@/lib/storage";
+
+import { finishTrip, getActiveTrip } from "@/services/tripService";
+import type { Trip } from "@/lib/db";
 
 export default function DriverEndPage() {
-  const trip = getStorage("trip");
-  const initialKm = trip?.initialKm || 0;
-  const [finalKm, setFinalKm] = useState("");
+  const router = useRouter();
+
+  const [trip, setTrip] = useState<Trip | null>(null);
+  const [endKm, setEndKm] = useState("");
   const [error, setError] = useState("");
-  function handleValidate() {
-    const parsed = Number(finalKm);
-    if (!finalKm) {
+
+  useEffect(() => {
+    async function loadTrip() {
+      const activeTrip = await getActiveTrip();
+
+      if (!activeTrip) {
+        router.push("/driver/start");
+        return;
+      }
+      setTrip(activeTrip);
+    }
+
+    loadTrip();
+  }, [router]);
+
+  async function handleFinishTrip() {
+    if (!trip?.id) return;
+    const parsed = Number(endKm);
+    if (!endKm) {
       setError("Informe o KM final");
       return;
     }
-
-    if (finalKm.length < 5) {
-      setError("KM deve ter no mínimo 5 dígitos");
+    if (isNaN(parsed)) {
+      setError("Informe apenas números");
       return;
     }
-
-    if (parsed <= 0) {
-      setError("KM deve ser maior que zero");
+    if (parsed <= trip.startKm) {
+      setError("KM final deve ser maior que o KM inicial");
       return;
     }
-
-    if (parsed <= initialKm) {
-      setError(`KM final deve ser maior que ${initialKm}`);
+    if (parsed - trip.startKm > 2000) {
+      setError("Verifique o KM informado. Distância muito alta.");
       return;
     }
-
     setError("");
+    const endedAt = new Date();
+    const startedAt = new Date(trip.startedAt);
+    const diffMs = endedAt.getTime() - startedAt.getTime();
+    const totalMinutes = Math.floor(diffMs / 1000 / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const duration =
+      `${String(hours).padStart(2, "0")}h ` +
+      `${String(minutes).padStart(2, "0")}min`;
 
-    saveStorage("trip", {
-      ...trip,
-      finalKm: parsed,
-      endedAt: new Date().toISOString(),
+    const distance = parsed - trip.startKm;
+
+    await finishTrip(trip.id, {
+      endKm: parsed,
+      distance,
+      endedAt: endedAt.toISOString(),
+      duration,
+      status: "Finalizada",
+      synced: false,
     });
-
-    router.push("/driver/review");
+    router.push("/driver/success");
   }
-  const router = useRouter();
 
   return (
     <MobileLayout>
+      {" "}
       <main className="min-h-screen bg-gradient-to-b from-indigo-950 to-indigo-900 text-white max-w-sm mx-auto flex flex-col p-6">
-        {/* Header */}
+        {" "}
         <div className="mb-10">
           <button
             onClick={() => router.back()}
             className="text-sm text-zinc-400 mb-6"
           >
-            ← Voltar
+            ← Voltar{" "}
           </button>
-          <h1 className="text-3xl font-bold text-white-900">Finalizar uso</h1>
-          <p className="text-white-500 mt-2">
-            Informe o KM atual do veículo para finalizar
-          </p>
+          <h1 className="text-3xl font-bold">Encerrar utilização</h1>
+          <p className="text-indigo-300 mt-2">Informe o KM final do veículo</p>
         </div>
-
-        {/* Status Icon */}
-        <div className="flex justify-center mb-10">
-          <div
-            className={`
-          w-28 h-28 rounded-full flex items-center justify-center text-4xl
-          ${error ? "bg-red-100 text-red-600" : "bg-indigo-100 text-indigo-600"}
-        `}
-          >
-            🏁
+        <Card className="rounded-3xl p-6 bg-white text-zinc-900 border-none shadow-2xl">
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-zinc-500">Veículo</p>
+              <h2 className="font-bold text-lg">{trip?.vehicleModel}</h2>
+              <p className="text-sm text-zinc-500">{trip?.vehiclePlate}</p>
+            </div>
+            <div className="border-t border-zinc-200" />
+            <div>
+              <p className="text-sm text-zinc-500 mb-2">KM inicial</p>
+              <h1 className="text-2xl font-bold">{trip?.startKm}</h1>
+            </div>
           </div>
-        </div>
-        {/* Input */}
-        <div className="mb-4">
-          <label className="text-sm text-white-500 mb-2 block">KM final</label>
+        </Card>
+        <div className="mt-8">
+          <label className="text-sm text-zinc-300 mb-2 block">KM final</label>
           <Input
-            value={finalKm}
+            value={endKm}
             onChange={(e) => {
               const value = e.target.value.replace(/\D/g, "");
               if (value.length <= 6) {
-                setFinalKm(value);
+                setEndKm(value);
               }
             }}
             placeholder="123456"
             type="text"
             inputMode="numeric"
           />
+          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          {trip && endKm && Number(endKm) > trip.startKm && (
+            <Card className="mt-4 rounded-2xl p-4 bg-white text-zinc-900">
+              <p className="text-sm text-zinc-500">Distância estimada</p>
+              <p className="text-2xl font-bold">
+                {Number(endKm) - trip.startKm} km
+              </p>
+            </Card>
+          )}
         </div>
-        {/* Error */}
-        {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-        {/* Vehicle Info */}
-        <div className="text-sm text-white-500">Fiat Palio Fire • ABC-1234</div>
-        {/* Button */}
         <div className="mt-auto pt-10">
           <Button
-            onClick={handleValidate}
-            className="w-full h-14 rounded-2xl text-base font-semibold"
+            onClick={handleFinishTrip}
+            className="w-full h-12 rounded-2xl text-base font-semibold"
           >
-            Confirmar finalização
+            Finalizar utilização
           </Button>
         </div>
       </main>

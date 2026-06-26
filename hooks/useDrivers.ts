@@ -1,51 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 
-import { Driver, drivers as initialDrivers } from "@/lib/mockdata";
+import { Driver, db } from "@/lib/db";
+
+import {
+  createDriver,
+  deleteDriver,
+  updateDriver,
+} from "@/services/driverService";
 
 export function useDrivers() {
-  const [drivers, setDrivers] = useState<Driver[]>(() => {
-    if (typeof window === "undefined") {
-      return initialDrivers;
-    }
-    const storedDrivers = localStorage.getItem("drivers");
-    return storedDrivers ? JSON.parse(storedDrivers) : initialDrivers;
-  });
+  const drivers = useLiveQuery(() => db.drivers.toArray(), []) ?? [];
 
-  useEffect(() => {
-    localStorage.setItem("drivers", JSON.stringify(drivers));
-  }, [drivers]);
-
-  function addDriver(driver: Omit<Driver, "id">) {
-    const newDriver: Driver = {
-      ...driver,
-      id: Date.now(),
-    };
-    setDrivers((prev) => [...prev, newDriver]);
+  async function add(driver: Omit<Driver, "id">) {
+    await createDriver(driver);
   }
 
-  function deleteDriver(id: number) {
-    setDrivers((prev) => prev.filter((driver) => driver.id !== id));
+  async function remove(id: string) {
+    await deleteDriver(id);
   }
 
-  function updateDriver(id: number, updatedDriver: Omit<Driver, "id">) {
-    setDrivers((prev) =>
-      prev.map((driver) =>
-        driver.id === id
-          ? {
-              ...driver,
-              ...updatedDriver,
-            }
-          : driver,
-      ),
-    );
+  async function update(id: string, updatedDriver: Omit<Driver, "id">) {
+    await updateDriver(id, updatedDriver);
   }
 
   return {
     drivers,
-    addDriver,
-    deleteDriver,
-    updateDriver,
+    addDriver: add,
+    deleteDriver: remove,
+    updateDriver: update,
   };
 }

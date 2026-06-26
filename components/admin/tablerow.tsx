@@ -1,18 +1,16 @@
-import { ReactNode } from "react";
+"use client";
 
-interface TableRowProps {
+import type { ReactNode } from "react";
+
+type TableRowProps = {
   children: ReactNode;
-}
+  className?: string;
+  onClick?: () => void;
+};
 
-export function TableRow({ children }: TableRowProps) {
+export function TableRow({ children, className, onClick }: TableRowProps) {
   return (
-    <tr
-      className="
-        border-b border-zinc-800
-        relative
-        overflow-visihble
-      "
-    >
+    <tr className={className} onClick={onClick}>
       {children}
     </tr>
   );

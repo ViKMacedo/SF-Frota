@@ -1,15 +1,58 @@
 "use client";
 
-import { Sidebar } from "@/components/admin/sidebar";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+
+import { Sidebar } from "@/components/admin/sidebar";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { useAdminPull } from "@/hooks/useAdminPull";
+import { clearSession, getSession } from "@/services/sessionService";
+
+type User = {
+  name: string;
+  role: "admin" | "driver";
+};
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  useAuthGuard("admin");
+  useAdminPull();
+
+  const router = useRouter();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    getSession().then((session) => {
+      if (session) {
+        setUser({ name: session.name, role: session.role });
+      }
+    });
+  }, []);
+
+  async function handleLogout() {
+    await clearSession();
+    router.push("/login");
+  }
+
   return (
-    <div className="flex h-screen bg-black text-white">
+    <div className="flex min-h-screen bg-black text-white">
       {/* Sidebar */}
       <aside className="w-72 border-r border-zinc-800 p-6 flex flex-col">
         {/* Logo */}
@@ -17,6 +60,7 @@ export default function AdminLayout({
           <h1 className="text-2xl font-bold tracking-tight">SF Frota</h1>
           <p className="text-zinc-500 text-sm mt-1">Plataforma operacional</p>
         </div>
+
         {/* Navigation */}
         <nav className="space-y-2">
           <Sidebar href="/admin/dashboard" label="Dashboard" />
@@ -29,36 +73,86 @@ export default function AdminLayout({
 
         {/* Footer */}
         <div className="mt-auto pt-6 border-t border-zinc-800">
-          <div className="bg-zinc-900 rounded-2xl p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center">
-                <Image
-                  src="/user.svg"
-                  alt="user"
-                  width={30}
-                  height={30}
-                  className="rounded-3xl"
-                />
+          <div ref={menuRef} className="relative">
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="
+                w-full
+                bg-zinc-900
+                rounded-2xl
+                p-4
+                hover:bg-zinc-800
+                transition
+                text-left
+              "
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
+                  <Image src="/user.svg" alt="user" width={30} height={30} />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium">{user?.name ?? "Administrador"}</p>
+                  <p className="text-zinc-500 text-sm">
+                    {user?.role === "admin" ? "Administrador" : "Motorista"}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium">Admin</p>
-                <p className="text-zinc-500 text-sm">Operação ativa</p>
+            </button>
+            {menuOpen && (
+              <div
+                className="
+                  absolute
+                  bottom-full
+                  left-0
+                  mb-2
+                  w-full
+                  overflow-hidden
+                  rounded-2xl
+                  border
+                  border-zinc-800
+                  bg-zinc-900
+                  shadow-xl
+                  z-50
+                "
+              >
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    router.push("/admin/settings");
+                  }}
+                  className="
+                    w-full
+                    px-4
+                    py-3
+                    text-left
+                    hover:bg-zinc-800
+                    transition
+                  "
+                >
+                  ⚙️ Configurações
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="
+                    w-full
+                    px-4
+                    py-3
+                    text-left
+                    text-red-400
+                    hover:bg-zinc-800
+                    transition
+                  "
+                >
+                  🚪 Sair
+                </button>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </aside>
+
       {/* Content */}
-      <main
-        className="
-          flex-1
-          overflow-y-auto
-          overflow-x-visible
-          p-8
-        "
-      >
-        {children}
-      </main>
+      <main className="flex-1 overflow-y-auto p-8 bg-black">{children}</main>
     </div>
   );
 }

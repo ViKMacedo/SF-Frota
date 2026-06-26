@@ -1,10 +1,11 @@
 "use client";
 
 interface ActionMenuProps {
-  isOpen: boolean; // Vem do pai
-  onToggle: () => void; // Vem do pai
+  isOpen: boolean;
+  onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onQr?: () => void;
 }
 
 export function ActionMenu({
@@ -12,6 +13,7 @@ export function ActionMenu({
   onToggle,
   onEdit,
   onDelete,
+  onQr,
 }: ActionMenuProps) {
   return (
     <div className="relative">
@@ -58,6 +60,15 @@ export function ActionMenu({
           >
             Excluir
           </button>
+          {onQr && (
+            <button
+              onClick={onQr}
+              className="w-full text-left px-4 py-3 hover:bg-zinc-800 transition"
+            >
+              {" "}
+              QR Code{" "}
+            </button>
+          )}
         </div>
       )}
     </div>
