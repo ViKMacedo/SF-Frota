@@ -10,6 +10,8 @@ import { getActiveTrip } from "@/services/tripService";
 import { db, type Trip, type RoutePoint } from "@/lib/db";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { TRACKING_STATUS, type TrackingStatus } from "@/constants/tracking";
+import { queueTripPositionUpdate } from "@/services/syncQueueService";
+import { syncPendingItems } from "@/services/syncService";
 
 const MIN_POINT_INTERVAL_MS = 5000;
 
@@ -133,6 +135,11 @@ export default function DriverRunningPage() {
         setSpeed(kmh);
         setStatusLabel(label);
         const now = Date.now();
+        console.debug("[Tracking] watchPosition disparou", {
+          latitude,
+          longitude,
+          now,
+        });
         if (now - lastPointTsRef.current < MIN_POINT_INTERVAL_MS) return;
         lastPointTsRef.current = now;
         const newPoint: RoutePoint = {
@@ -144,18 +151,50 @@ export default function DriverRunningPage() {
           ts: now,
           accel,
         };
-        db.trips.get(trip.id!).then((current) => {
-          if (!current) return;
-          db.trips.update(trip.id!, {
+        db.trips.get(trip.id!).then(async (current) => {
+          if (!current) {
+            console.warn(
+              "[Tracking] Trip não encontrada no Dexie local:",
+              trip.id,
+            );
+            return;
+          }
+          const changes = {
             lat: latitude,
             lng: longitude,
             speed: kmh,
             statusLabel: label,
             route: [...(current.route ?? []), newPoint],
-          });
+          };
+          const updated: Trip = { ...current, ...changes };
+
+          try {
+            await db.trips.update(trip.id!, changes);
+            await queueTripPositionUpdate(updated);
+            console.debug("[Tracking] Posição enfileirada", {
+              lat: latitude,
+              lng: longitude,
+              tripId: trip.id,
+            });
+          } catch (e) {
+            console.error("[Tracking] Falha ao gravar/enfileirar posição:", e);
+            return;
+          }
+
+          try {
+            await syncPendingItems();
+            console.debug("[Tracking] syncPendingItems concluído");
+          } catch (e) {
+            console.error("[Tracking] syncPendingItems falhou:", e);
+          }
         });
       },
       (err) => {
+        console.error(
+          "[Tracking] Erro do watchPosition:",
+          err.code,
+          err.message,
+        );
         const info = GPS_ERROR_MESSAGES[err.code] ?? {
           title: "Erro de GPS",
           instructions: err.message,
