@@ -53,7 +53,7 @@ export default function ReportsPage() {
       const statusMatch =
         statusFilter === "Todos" || trip.status === statusFilter;
       const driverMatch =
-        driverFilter === "Todos" || trip.driverName === driverFilter;
+        driverFilter === "Todos" || trip.driverId === driverFilter;
       const vehicleMatch =
         vehicleFilter === "Todos" || trip.vehicleModel === vehicleFilter;
       return statusMatch && driverMatch && vehicleMatch;
@@ -82,28 +82,47 @@ export default function ReportsPage() {
     };
   }, [filteredTrips]);
   const filteredKmPerVehicle = useMemo(() => {
-    const grouped = new Map<string, number>();
+    const grouped = new Map<string, { name: string; trips: number }>();
 
     filteredTrips.forEach((trip) => {
-      const current = grouped.get(trip.vehicleModel) || 0;
-      grouped.set(trip.vehicleModel, current + (trip.distance || 0));
+      const item = grouped.get(trip.driverId);
+
+      if (item) {
+        item.trips++;
+      } else {
+        grouped.set(trip.driverId, {
+          name: trip.driverId,
+          trips: 1,
+        });
+      }
     });
-    return Array.from(grouped.entries()).map(([name, km]) => ({
-      name,
-      km,
-    }));
+
+    return [...grouped.values()];
   }, [filteredTrips]);
 
   const filteredTripsPerDriver = useMemo(() => {
-    const grouped = new Map<string, number>();
+    const grouped = new Map<
+      string,
+      {
+        name: string;
+        trips: number;
+      }
+    >();
+
     filteredTrips.forEach((trip) => {
-      const current = grouped.get(trip.driverName) || 0;
-      grouped.set(trip.driverName, current + 1);
+      const current = grouped.get(trip.driverId);
+
+      if (current) {
+        current.trips++;
+      } else {
+        grouped.set(trip.driverId, {
+          name: trip.driverName,
+          trips: 1,
+        });
+      }
     });
-    return Array.from(grouped.entries()).map(([name, trips]) => ({
-      name,
-      trips,
-    }));
+
+    return [...grouped.values()];
   }, [filteredTrips]);
   const totalPages = Math.ceil(filteredTrips.length / PAGE_SIZE);
   const paginatedTrips = useMemo(() => {
@@ -188,7 +207,7 @@ export default function ReportsPage() {
             "
           >
             <option>Todos</option>
-            {[...new Set(reportData.trips.map((trip) => trip.driverName))].map(
+            {[...new Set(reportData.trips.map((trip) => trip.driverId))].map(
               (driver) => (
                 <option key={driver}>{driver}</option>
               ),
@@ -288,7 +307,7 @@ export default function ReportsPage() {
       <Table headers={["Motorista", "Veículo", "KM", "Status"]}>
         {paginatedTrips.map((trip) => (
           <TableRow key={trip.id}>
-            <TableCell className="font-medium">{trip.driverName}</TableCell>
+            <TableCell className="font-medium">{trip.driverId}</TableCell>
             <TableCell>{trip.vehicleModel}</TableCell>
             <TableCell>{trip.distance || 0} km</TableCell>
             <TableCell>
