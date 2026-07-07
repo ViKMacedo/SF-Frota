@@ -26,7 +26,6 @@ import { syncPendingItems } from "@/services/syncService";
 
 type SortField = "name" | "registration" | "license" | "status";
 type SortDir = "asc" | "desc";
-
 const ITEMS_PER_PAGE = 10;
 
 function SortIcon({
@@ -47,7 +46,8 @@ function SortIcon({
 }
 
 export default function DriversPage() {
-  const drivers = useLiveQuery(async () => await getDrivers(), []) ?? [];
+  const driversRaw = useLiveQuery(async () => await getDrivers(), []);
+  const loading = driversRaw === undefined;
 
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
@@ -78,6 +78,7 @@ export default function DriversPage() {
   }
 
   const filteredDrivers = useMemo(() => {
+    const drivers = driversRaw ?? [];
     const q = search.toLowerCase();
     return drivers
       .filter((d) => showInactive || d.status !== "Afastado")
@@ -94,7 +95,7 @@ export default function DriversPage() {
         const bv = (b[sortField] ?? "").toString().toLowerCase();
         return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
       });
-  }, [drivers, showInactive, search, sortField, sortDir]);
+  }, [driversRaw, showInactive, search, sortField, sortDir]);
 
   const totalPages = Math.ceil(filteredDrivers.length / ITEMS_PER_PAGE);
   const paginatedDrivers = filteredDrivers.slice(
@@ -208,108 +209,120 @@ export default function DriversPage() {
       </div>
 
       <div className="overflow-x-auto no-scrollbar">
-        <Table
-          headers={[
-            <button
-              key="name"
-              onClick={() => toggleSort("name")}
-              className="flex items-center hover:text-white transition"
-            >
-              Nome{" "}
-              <SortIcon field="name" sortField={sortField} sortDir={sortDir} />
-            </button>,
-            <button
-              key="reg"
-              onClick={() => toggleSort("registration")}
-              className="flex items-center hover:text-white transition"
-            >
-              Usuário{" "}
-              <SortIcon
-                field="registration"
-                sortField={sortField}
-                sortDir={sortDir}
-              />
-            </button>,
-            "Perfil",
-            <button
-              key="lic"
-              onClick={() => toggleSort("license")}
-              className="flex items-center hover:text-white transition"
-            >
-              CNH{" "}
-              <SortIcon
-                field="license"
-                sortField={sortField}
-                sortDir={sortDir}
-              />
-            </button>,
-            <button
-              key="status"
-              onClick={() => toggleSort("status")}
-              className="flex items-center hover:text-white transition"
-            >
-              Status{" "}
-              <SortIcon
-                field="status"
-                sortField={sortField}
-                sortDir={sortDir}
-              />
-            </button>,
-            "Ações",
-          ]}
-        >
-          {paginatedDrivers.map((driver) => (
-            <TableRow key={driver.id}>
-              <TableCell className="font-medium">{driver.name}</TableCell>
-              <TableCell>{driver.registration}</TableCell>
-              <TableCell>
-                {driver.role === "admin" ? "Administrador" : "Motorista"}
-              </TableCell>
-              <TableCell>{driver.license}</TableCell>
-              <TableCell>
-                <StatusBadge
-                  status={
-                    driver.status === "Ativo"
-                      ? "active"
-                      : driver.status === "Férias"
-                        ? "maintenance"
-                        : "inactive"
-                  }
-                  label={driver.status}
+        {loading ? (
+          <div className="py-16 text-center text-zinc-500 text-sm">
+            Carregando...
+          </div>
+        ) : (
+          <Table
+            headers={[
+              <button
+                key="name"
+                onClick={() => toggleSort("name")}
+                className="flex items-center hover:text-white transition"
+              >
+                Nome{" "}
+                <SortIcon
+                  field="name"
+                  sortField={sortField}
+                  sortDir={sortDir}
                 />
-              </TableCell>
-              <TableCell>
-                <ActionMenu
-                  isOpen={openMenuId === driver.id}
-                  onToggle={() =>
-                    setOpenMenuId(
-                      openMenuId === driver.id ? null : (driver.id ?? null),
-                    )
-                  }
-                  onEdit={() => handleEditDriver(driver)}
-                  onDelete={async () => {
-                    if (!driver.id) return;
-                    await deleteDriver(driver.id);
-                  }}
+              </button>,
+              <button
+                key="reg"
+                onClick={() => toggleSort("registration")}
+                className="flex items-center hover:text-white transition"
+              >
+                Usuário{" "}
+                <SortIcon
+                  field="registration"
+                  sortField={sortField}
+                  sortDir={sortDir}
                 />
-              </TableCell>
-            </TableRow>
-          ))}
-          {paginatedDrivers.length === 0 && (
-            <TableRow>
-              <TableCell className="py-10 text-center text-zinc-500">
-                Nenhum motorista encontrado.
-              </TableCell>
-            </TableRow>
-          )}
-        </Table>
+              </button>,
+              "Perfil",
+              <button
+                key="lic"
+                onClick={() => toggleSort("license")}
+                className="flex items-center hover:text-white transition"
+              >
+                CNH{" "}
+                <SortIcon
+                  field="license"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                />
+              </button>,
+              <button
+                key="status"
+                onClick={() => toggleSort("status")}
+                className="flex items-center hover:text-white transition"
+              >
+                Status{" "}
+                <SortIcon
+                  field="status"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                />
+              </button>,
+              "Ações",
+            ]}
+          >
+            {paginatedDrivers.map((driver) => (
+              <TableRow key={driver.id}>
+                <TableCell className="font-medium">{driver.name}</TableCell>
+                <TableCell>{driver.registration}</TableCell>
+                <TableCell>
+                  {driver.role === "admin" ? "Administrador" : "Motorista"}
+                </TableCell>
+                <TableCell>{driver.license}</TableCell>
+                <TableCell>
+                  <StatusBadge
+                    status={
+                      driver.status === "Ativo"
+                        ? "active"
+                        : driver.status === "Férias"
+                          ? "maintenance"
+                          : "inactive"
+                    }
+                    label={driver.status}
+                  />
+                </TableCell>
+                <TableCell>
+                  <ActionMenu
+                    isOpen={openMenuId === driver.id}
+                    onToggle={() =>
+                      setOpenMenuId(
+                        openMenuId === driver.id ? null : (driver.id ?? null),
+                      )
+                    }
+                    onEdit={() => handleEditDriver(driver)}
+                    onDelete={async () => {
+                      if (!driver.id) return;
+                      await deleteDriver(driver.id);
+                    }}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+            {paginatedDrivers.length === 0 && (
+              <TableRow>
+                <TableCell className="py-10 text-center text-zinc-500">
+                  Nenhum motorista encontrado.
+                </TableCell>
+              </TableRow>
+            )}
+          </Table>
+        )}
       </div>
 
       <div className="flex items-center justify-between mt-6">
         <p className="text-sm text-zinc-500">
-          {filteredDrivers.length === 0
-            ? "Nenhum resultado"
-            : `${(page - 1) * ITEMS_PER_PAGE + 1}–${Math.min(page * ITEMS_PER_PAGE, filteredDrivers.length)} de ${filteredDrivers.length} motoristas`}
+          {loading
+            ? ""
+            : filteredDrivers.length === 0
+              ? "Nenhum resultado"
+              : `${(page - 1) * ITEMS_PER_PAGE + 1}–${Math.min(page * ITEMS_PER_PAGE, filteredDrivers.length)} de ${filteredDrivers.length} motoristas`}
         </p>
         <div className="flex items-center gap-2">
           <button

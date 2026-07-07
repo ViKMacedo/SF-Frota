@@ -1,17 +1,17 @@
-import { ReactNode } from "react";
+import { ReactNode, TdHTMLAttributes } from "react";
 
-interface TableCellProps {
+interface TableCellProps extends TdHTMLAttributes<HTMLTableCellElement> {
   children: ReactNode;
-  className?: string;
 }
 
-export function TableCell({ children, className }: TableCellProps) {
+export function TableCell({ children, className, ...props }: TableCellProps) {
   return (
     <td
+      {...props}
       className={`
-       px-6 py-5
-       ${className || ""}
-   `}
+        px-6 py-5
+        ${className ?? ""}
+      `}
     >
       {children}
     </td>
