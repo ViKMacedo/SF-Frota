@@ -56,7 +56,10 @@ function LoginForm() {
   }, [session, router]);
 
   async function handleLogin() {
-    if (!name || !pin) {
+    const trimmedName = name.trim();
+    const trimmedPin = pin.trim();
+
+    if (!trimmedName || !trimmedPin) {
       showToast("Preencha usuário e PIN", "warning");
       return;
     }
@@ -67,7 +70,7 @@ function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration: name, pin }),
+        body: JSON.stringify({ registration: trimmedName, pin: trimmedPin }),
       });
 
       if (res.ok) {
@@ -94,7 +97,7 @@ function LoginForm() {
       throw new Error("server_error");
     } catch {
       // tenta sessão cacheada
-      await tryOfflineLogin(name, pin);
+      await tryOfflineLogin(trimmedName, trimmedPin);
     } finally {
       setLoading(false);
     }

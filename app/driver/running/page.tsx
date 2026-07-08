@@ -216,9 +216,24 @@ export default function DriverRunningPage() {
       <MobileLayout>
         <button
           onClick={() => router.back()}
-          className="text-sm text-indigo-300 mb-8 self-start"
+          aria-label="Voltar"
+          className="flex items-center gap-1.5 -ml-1 mb-6 px-3 min-h-11 text-sm font-medium text-indigo-200 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white active:bg-white/15 rounded-xl transition self-start"
         >
-          ← Voltar
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M19 12H5" />
+            <path d="M12 19l-7-7 7-7" />
+          </svg>
+          Voltar
         </button>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
@@ -262,9 +277,24 @@ export default function DriverRunningPage() {
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={() => router.back()}
-          className="text-sm text-indigo-300"
+          aria-label="Voltar"
+          className="flex items-center gap-1.5 -ml-1 mb-6 px-3 min-h-11 text-sm font-medium text-indigo-200 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white active:bg-white/15 rounded-xl transition self-start"
         >
-          ← Voltar
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M19 12H5" />
+            <path d="M12 19l-7-7 7-7" />
+          </svg>
+          Voltar
         </button>
         <span
           className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor}`}

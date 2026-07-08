@@ -76,13 +76,28 @@ export default function DriverScanPage() {
           await clearSession();
           router.replace("/login");
         }}
-        className="text-sm text-indigo-300 mb-8 self-start"
+        aria-label="Voltar e sair"
+        className="flex items-center gap-1.5 -ml-1 mb-6 px-3 min-h-11 text-sm font-medium text-indigo-200 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white active:bg-white/15 rounded-xl transition self-start"
       >
-        ← Voltar
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M19 12H5" />
+          <path d="M12 19l-7-7 7-7" />
+        </svg>
+        Voltar
       </button>
 
       <h1 className="text-2xl font-bold text-white mb-2">Escanear QR Code</h1>
-      <p className="text-indigo-300 text-sm mb-8">
+      <p className="text-indigo-200 text-sm font-medium mb-8">
         Aponte a câmera para o QR Code do veículo
       </p>
 

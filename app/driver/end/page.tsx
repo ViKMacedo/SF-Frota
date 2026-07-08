@@ -83,9 +83,24 @@ export default function DriverEndPage() {
         <div className="mb-10">
           <button
             onClick={() => router.back()}
-            className="text-sm text-zinc-400 mb-6"
+            aria-label="Voltar"
+            className="flex items-center gap-1.5 -ml-1 mb-6 px-3 min-h-11 text-sm font-medium text-indigo-200 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white active:bg-white/15 rounded-xl transition self-start"
           >
-            ← Voltar{" "}
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M19 12H5" />
+              <path d="M12 19l-7-7 7-7" />
+            </svg>
+            Voltar
           </button>
           <h1 className="text-3xl font-bold">Encerrar utilização</h1>
           <p className="text-indigo-300 mt-2">Informe o KM final do veículo</p>
