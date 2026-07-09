@@ -1,6 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Trip } from "@/lib/db";
+
+const RouteMap = dynamic(
+  () => import("@/components/admin/routemap").then((m) => m.RouteMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[280px] rounded-xl bg-zinc-800 animate-pulse" />
+    ),
+  },
+);
 
 type Props = {
   trip: Trip | null;
@@ -163,20 +174,10 @@ export function TripDrawer({ trip, open, onClose }: Props) {
             </div>
           </div>
 
-          {/* Localização */}
+          {/* Rota */}
           <div className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
-            <h3 className="font-semibold mb-4 text-white">
-              Localização registrada
-            </h3>
-
-            <div className="space-y-2 text-sm">
-              <p>
-                <span className="text-zinc-500">Latitude:</span> {trip.lat}
-              </p>
-              <p>
-                <span className="text-zinc-500">Longitude:</span> {trip.lng}
-              </p>
-            </div>
+            <h3 className="font-semibold mb-4 text-white">Rota percorrida</h3>
+            <RouteMap trip={trip} />
           </div>
 
           {/* Sincronização */}

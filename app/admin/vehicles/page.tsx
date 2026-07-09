@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import QRCode from "qrcode";
 import Image from "next/image";
@@ -25,12 +25,35 @@ import {
 } from "@/services/vehicleService";
 import { syncPendingItems } from "@/services/syncService";
 
+type SortField = "model" | "plate" | "type" | "km" | "status";
+type SortDir = "asc" | "desc";
 const ITEMS_PER_PAGE = 10;
 
+function SortIcon({
+  field,
+  sortField,
+  sortDir,
+}: {
+  field: SortField;
+  sortField: SortField;
+  sortDir: SortDir;
+}) {
+  if (sortField !== field) return <span className="text-zinc-700 ml-1">↕</span>;
+  return (
+    <span className="text-indigo-400 ml-1">
+      {sortDir === "asc" ? "↑" : "↓"}
+    </span>
+  );
+}
+
 export default function VehiclesPage() {
-  const allVehicles = useLiveQuery(() => db.vehicles.toArray(), []) ?? [];
+  const allVehiclesRaw = useLiveQuery(() => db.vehicles.toArray(), []);
+  const loading = allVehiclesRaw === undefined;
 
   const [showInactive, setShowInactive] = useState(false);
+  const [search, setSearch] = useState("");
+  const [sortField, setSortField] = useState<SortField>("model");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -50,6 +73,45 @@ export default function VehiclesPage() {
   const [formError, setFormError] = useState("");
   const [page, setPage] = useState(1);
 
+  function toggleSort(field: SortField) {
+    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+    setPage(1);
+  }
+
+  const filteredVehicles = useMemo(() => {
+    const allVehicles = allVehiclesRaw ?? [];
+    const q = search.toLowerCase();
+    return allVehicles
+      .filter((v) => showInactive || v.status !== "Inativo")
+      .filter(
+        (v) =>
+          !q ||
+          v.model.toLowerCase().includes(q) ||
+          v.plate.toLowerCase().includes(q) ||
+          v.type.toLowerCase().includes(q) ||
+          v.status.toLowerCase().includes(q),
+      )
+      .sort((a, b) => {
+        if (sortField === "km")
+          return sortDir === "asc"
+            ? Number(a.km) - Number(b.km)
+            : Number(b.km) - Number(a.km);
+        const av = (a[sortField] ?? "").toString().toLowerCase();
+        const bv = (b[sortField] ?? "").toString().toLowerCase();
+        return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      });
+  }, [allVehiclesRaw, showInactive, search, sortField, sortDir]);
+
+  const totalPages = Math.ceil(filteredVehicles.length / ITEMS_PER_PAGE);
+  const paginatedVehicles = filteredVehicles.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE,
+  );
+
   async function handleCreateVehicle() {
     const plateRegex = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/;
     if (!model) {
@@ -65,22 +127,22 @@ export default function VehiclesPage() {
       return;
     }
     setFormError("");
-
-    const vehicleData = { model, plate, type, km: Number(km), status };
-
     try {
-      if (editingId !== null) {
-        await updateVehicle(editingId, vehicleData);
-      } else {
-        await createVehicle(vehicleData);
-      }
+      if (editingId !== null)
+        await updateVehicle(editingId, {
+          model,
+          plate,
+          type,
+          km: Number(km),
+          status,
+        });
+      else await createVehicle({ model, plate, type, km: Number(km), status });
     } catch (err) {
       setFormError(
         err instanceof Error ? err.message : "Erro ao salvar veículo.",
       );
       return;
     }
-
     syncPendingItems();
     resetForm();
   }
@@ -93,7 +155,6 @@ export default function VehiclesPage() {
     setStatus("Disponível");
     setEditingId(null);
     setFormError("");
-    syncPendingItems();
     setOpen(false);
   }
 
@@ -110,21 +171,11 @@ export default function VehiclesPage() {
 
   async function handleOpenQr(vehicle: Vehicle) {
     setSelectedQrVehicle(vehicle);
-    const qr = await QRCode.toDataURL(
-      JSON.stringify({ vehicleId: vehicle.id }),
+    setQrCode(
+      await QRCode.toDataURL(JSON.stringify({ vehicleId: vehicle.id })),
     );
-    setQrCode(qr);
     setOpenMenuId(null);
   }
-
-  const filteredVehicles = allVehicles.filter(
-    (v) => showInactive || v.status !== "Inativo",
-  );
-  const totalPages = Math.ceil(filteredVehicles.length / ITEMS_PER_PAGE);
-  const paginatedVehicles = filteredVehicles.slice(
-    (page - 1) * ITEMS_PER_PAGE,
-    page * ITEMS_PER_PAGE,
-  );
 
   return (
     <div>
@@ -138,66 +189,199 @@ export default function VehiclesPage() {
         </Button>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
-        <button
-          onClick={() => {
-            setShowInactive((v) => !v);
-            setPage(1);
-          }}
-          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showInactive ? "bg-indigo-600" : "bg-zinc-300"}`}
-        >
-          <span
-            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${showInactive ? "translate-x-4" : "translate-x-1"}`}
+      <div className="flex items-center gap-4 mb-4">
+        <div className="relative flex-1 max-w-sm">
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+            xmlns="http://www.w3.org/2000/svg"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Buscar por modelo, placa, tipo..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition"
           />
-        </button>
-        <span className="text-sm text-zinc-500">Mostrar inativos</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setShowInactive((v) => !v);
+              setPage(1);
+            }}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showInactive ? "bg-indigo-600" : "bg-zinc-700"}`}
+          >
+            <span
+              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${showInactive ? "translate-x-4" : "translate-x-1"}`}
+            />
+          </button>
+          <span className="text-sm text-zinc-500 whitespace-nowrap">
+            Mostrar inativos
+          </span>
+        </div>
       </div>
 
       <div className="overflow-x-auto no-scrollbar">
-        <Table headers={["Modelo", "Placa", "Tipo", "KM", "Status", "Ações"]}>
-          {paginatedVehicles.map((vehicle) => (
-            <TableRow key={vehicle.id}>
-              <TableCell className="font-medium">{vehicle.model}</TableCell>
-              <TableCell>{vehicle.plate}</TableCell>
-              <TableCell>{vehicle.type}</TableCell>
-              <TableCell>{vehicle.km} km</TableCell>
-              <TableCell>
-                <StatusBadge
-                  status={
-                    vehicle.status === "Em uso"
-                      ? "active"
-                      : vehicle.status === "Em manutenção"
-                        ? "maintenance"
-                        : vehicle.status === "Disponível"
-                          ? "available"
-                          : "inactive"
-                  }
+        {loading ? (
+          <div className="py-16 text-center text-zinc-500 text-sm">
+            Carregando...
+          </div>
+        ) : (
+          <Table
+            headers={[
+              <button
+                key="model"
+                onClick={() => toggleSort("model")}
+                className="flex items-center hover:text-white transition"
+              >
+                Modelo{" "}
+                <SortIcon
+                  field="model"
+                  sortField={sortField}
+                  sortDir={sortDir}
                 />
-              </TableCell>
-              <TableCell>
-                <ActionMenu
-                  isOpen={openMenuId === vehicle.id}
-                  onToggle={() =>
-                    setOpenMenuId(
-                      openMenuId === vehicle.id ? null : (vehicle.id ?? null),
-                    )
-                  }
-                  onEdit={() => handleEditVehicle(vehicle)}
-                  onDelete={async () => {
-                    if (!vehicle.id) return;
-                    await deleteVehicle(vehicle.id);
-                    syncPendingItems();
-                    setOpenMenuId(null);
-                  }}
-                  onQr={() => handleOpenQr(vehicle)}
+              </button>,
+              <button
+                key="plate"
+                onClick={() => toggleSort("plate")}
+                className="flex items-center hover:text-white transition"
+              >
+                Placa{" "}
+                <SortIcon
+                  field="plate"
+                  sortField={sortField}
+                  sortDir={sortDir}
                 />
-              </TableCell>
-            </TableRow>
-          ))}
-        </Table>
+              </button>,
+              <button
+                key="type"
+                onClick={() => toggleSort("type")}
+                className="flex items-center hover:text-white transition"
+              >
+                Tipo{" "}
+                <SortIcon
+                  field="type"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                />
+              </button>,
+              <button
+                key="km"
+                onClick={() => toggleSort("km")}
+                className="flex items-center hover:text-white transition"
+              >
+                KM{" "}
+                <SortIcon field="km" sortField={sortField} sortDir={sortDir} />
+              </button>,
+              <button
+                key="status"
+                onClick={() => toggleSort("status")}
+                className="flex items-center hover:text-white transition"
+              >
+                Status{" "}
+                <SortIcon
+                  field="status"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                />
+              </button>,
+              "Ações",
+            ]}
+          >
+            {paginatedVehicles.map((vehicle) => (
+              <TableRow key={vehicle.id}>
+                <TableCell className="font-medium">{vehicle.model}</TableCell>
+                <TableCell>{vehicle.plate}</TableCell>
+                <TableCell>{vehicle.type}</TableCell>
+                <TableCell>{vehicle.km} km</TableCell>
+                <TableCell>
+                  <StatusBadge
+                    status={
+                      vehicle.status === "Em uso"
+                        ? "active"
+                        : vehicle.status === "Em manutenção"
+                          ? "maintenance"
+                          : vehicle.status === "Disponível"
+                            ? "available"
+                            : "inactive"
+                    }
+                  />
+                </TableCell>
+                <TableCell>
+                  <ActionMenu
+                    isOpen={openMenuId === vehicle.id}
+                    onToggle={() =>
+                      setOpenMenuId(
+                        openMenuId === vehicle.id ? null : (vehicle.id ?? null),
+                      )
+                    }
+                    onEdit={() => handleEditVehicle(vehicle)}
+                    onDelete={async () => {
+                      if (!vehicle.id) return;
+                      await deleteVehicle(vehicle.id);
+                      syncPendingItems();
+                    }}
+                    onQr={() => handleOpenQr(vehicle)}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+            {paginatedVehicles.length === 0 && (
+              <TableRow>
+                <TableCell className="py-10 text-center text-zinc-500">
+                  Nenhum veículo encontrado.
+                </TableCell>
+              </TableRow>
+            )}
+          </Table>
+        )}
       </div>
 
-      {/* QR Modal */}
+      <div className="flex items-center justify-between mt-6">
+        <p className="text-sm text-zinc-500">
+          {loading
+            ? ""
+            : filteredVehicles.length === 0
+              ? "Nenhum resultado"
+              : `${(page - 1) * ITEMS_PER_PAGE + 1}–${Math.min(page * ITEMS_PER_PAGE, filteredVehicles.length)} de ${filteredVehicles.length} veículos`}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+            className="rounded-xl border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+          >
+            ←
+          </Button>
+          <div className="px-4 text-sm font-medium text-zinc-400">
+            {page} / {Math.max(totalPages, 1)}
+          </div>
+          <Button
+            variant="outline"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+            className="rounded-xl border-zinc-700 bg-zinc-900 hover:bg-indigo-600 hover:border-indigo-600"
+          >
+            →
+          </Button>
+        </div>
+      </div>
+
       <Modal
         open={!!selectedQrVehicle}
         onClose={() => {
@@ -225,7 +409,6 @@ export default function VehiclesPage() {
         </div>
       </Modal>
 
-      {/* Form Modal */}
       <Modal
         open={open}
         onClose={resetForm}
@@ -301,36 +484,6 @@ export default function VehiclesPage() {
           </Button>
         </div>
       </Modal>
-
-      <div className="flex items-center justify-between mt-6">
-        <p className="text-sm text-zinc-500">
-          Mostrando{" "}
-          {filteredVehicles.length === 0 ? 0 : (page - 1) * ITEMS_PER_PAGE + 1}–
-          {Math.min(page * ITEMS_PER_PAGE, filteredVehicles.length)} de{" "}
-          {filteredVehicles.length} veículos
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
-            className="rounded-xl border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
-          >
-            ←
-          </Button>
-          <div className="px-4 text-sm font-medium text-zinc-400">
-            {page} / {Math.max(totalPages, 1)}
-          </div>
-          <Button
-            variant="outline"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            className="rounded-xl border-zinc-700 bg-zinc-900 hover:bg-indigo-600 hover:border-indigo-600"
-          >
-            →
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

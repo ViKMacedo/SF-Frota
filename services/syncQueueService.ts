@@ -49,6 +49,34 @@ export async function addTripToQueue(
   });
 }
 
+/**
+ * Enfileira uma atualização de posição (lat/lng/speed/route) de uma trip em
+ * andamento. Usa upsert sobre a fila local: se já existe um item pendente de
+ * "update" para essa mesma trip (ainda não sincronizado), substitui o
+ * payload em vez de criar um novo item.
+ */
+export async function queueTripPositionUpdate(payload: Trip) {
+  const existing = await db.syncQueue
+    .filter(
+      (item) =>
+        !item.synced &&
+        item.entity === "trip" &&
+        item.operation === "update" &&
+        item.payload.id === payload.id,
+    )
+    .first();
+
+  if (existing) {
+    await db.syncQueue.update(existing.id, {
+      payload,
+      createdAt: Date.now(),
+    });
+    return;
+  }
+
+  await addTripToQueue("update", payload);
+}
+
 export async function addSettingsToQueue(
   operation: "create" | "update" | "delete",
   payload: Settings,

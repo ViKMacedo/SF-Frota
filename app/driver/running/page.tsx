@@ -10,6 +10,8 @@ import { getActiveTrip } from "@/services/tripService";
 import { db, type Trip, type RoutePoint } from "@/lib/db";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { TRACKING_STATUS, type TrackingStatus } from "@/constants/tracking";
+import { queueTripPositionUpdate } from "@/services/syncQueueService";
+import { syncPendingItems } from "@/services/syncService";
 
 const MIN_POINT_INTERVAL_MS = 5000;
 
@@ -133,6 +135,11 @@ export default function DriverRunningPage() {
         setSpeed(kmh);
         setStatusLabel(label);
         const now = Date.now();
+        console.debug("[Tracking] watchPosition disparou", {
+          latitude,
+          longitude,
+          now,
+        });
         if (now - lastPointTsRef.current < MIN_POINT_INTERVAL_MS) return;
         lastPointTsRef.current = now;
         const newPoint: RoutePoint = {
@@ -144,18 +151,50 @@ export default function DriverRunningPage() {
           ts: now,
           accel,
         };
-        db.trips.get(trip.id!).then((current) => {
-          if (!current) return;
-          db.trips.update(trip.id!, {
+        db.trips.get(trip.id!).then(async (current) => {
+          if (!current) {
+            console.warn(
+              "[Tracking] Trip não encontrada no Dexie local:",
+              trip.id,
+            );
+            return;
+          }
+          const changes = {
             lat: latitude,
             lng: longitude,
             speed: kmh,
             statusLabel: label,
             route: [...(current.route ?? []), newPoint],
-          });
+          };
+          const updated: Trip = { ...current, ...changes };
+
+          try {
+            await db.trips.update(trip.id!, changes);
+            await queueTripPositionUpdate(updated);
+            console.debug("[Tracking] Posição enfileirada", {
+              lat: latitude,
+              lng: longitude,
+              tripId: trip.id,
+            });
+          } catch (e) {
+            console.error("[Tracking] Falha ao gravar/enfileirar posição:", e);
+            return;
+          }
+
+          try {
+            await syncPendingItems();
+            console.debug("[Tracking] syncPendingItems concluído");
+          } catch (e) {
+            console.error("[Tracking] syncPendingItems falhou:", e);
+          }
         });
       },
       (err) => {
+        console.error(
+          "[Tracking] Erro do watchPosition:",
+          err.code,
+          err.message,
+        );
         const info = GPS_ERROR_MESSAGES[err.code] ?? {
           title: "Erro de GPS",
           instructions: err.message,
@@ -177,9 +216,24 @@ export default function DriverRunningPage() {
       <MobileLayout>
         <button
           onClick={() => router.back()}
-          className="text-sm text-indigo-300 mb-8 self-start"
+          aria-label="Voltar"
+          className="flex items-center gap-1.5 -ml-1 mb-6 px-3 min-h-11 text-sm font-medium text-indigo-200 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white active:bg-white/15 rounded-xl transition self-start"
         >
-          ← Voltar
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M19 12H5" />
+            <path d="M12 19l-7-7 7-7" />
+          </svg>
+          Voltar
         </button>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
@@ -223,9 +277,24 @@ export default function DriverRunningPage() {
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={() => router.back()}
-          className="text-sm text-indigo-300"
+          aria-label="Voltar"
+          className="flex items-center gap-1.5 -ml-1 mb-6 px-3 min-h-11 text-sm font-medium text-indigo-200 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white active:bg-white/15 rounded-xl transition self-start"
         >
-          ← Voltar
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M19 12H5" />
+            <path d="M12 19l-7-7 7-7" />
+          </svg>
+          Voltar
         </button>
         <span
           className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor}`}

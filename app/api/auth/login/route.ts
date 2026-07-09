@@ -11,10 +11,15 @@ const supabaseAdmin = createClient(
 export async function POST(req: NextRequest) {
   const { registration, pin } = await req.json();
 
+  const cleanRegistration = typeof registration === "string"
+    ? registration.trim()
+    : registration;
+  const cleanPin = typeof pin === "string" ? pin.trim() : pin;
+
   const { data: driver, error } = await supabaseAdmin
     .from("drivers")
     .select("*")
-    .eq("registration", registration)
+    .eq("registration", cleanRegistration)
     .eq("status", "Ativo")
     .single();
 
@@ -26,7 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   // pin_hash tem prioridade; fallback para pin em texto puro durante migração
-  const pinValid = await bcrypt.compare(pin, driver.pin_hash);
+  const pinValid = await bcrypt.compare(cleanPin, driver.pin_hash);
 
   if (!pinValid) {
     return NextResponse.json({ error: "PIN inválido" }, { status: 401 });
