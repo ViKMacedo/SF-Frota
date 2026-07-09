@@ -82,30 +82,36 @@ export default function SettingsPage() {
         <h2 className="text-xl font-semibold mb-6">Empresa</h2>
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <FormLabel>Nome da empresa</FormLabel>
+            <FormLabel htmlFor="settings-company-name">
+              Nome da empresa
+            </FormLabel>
             <FormInput
+              id="settings-company-name"
               value={form.companyName}
               onChange={(e) => update("companyName", e.target.value)}
             />
           </div>
           <div>
-            <FormLabel>CNPJ</FormLabel>
+            <FormLabel htmlFor="settings-company-document">CNPJ</FormLabel>
             <FormInput
+              id="settings-company-document"
               value={form.companyDocument}
               onChange={(e) => update("companyDocument", e.target.value)}
             />
           </div>
           <div>
-            <FormLabel>Telefone</FormLabel>
+            <FormLabel htmlFor="settings-company-phone">Telefone</FormLabel>
             <FormInput
+              id="settings-company-phone"
               value={form.companyPhone}
               onChange={(e) => update("companyPhone", e.target.value)}
               maxLength={11}
             />
           </div>
           <div>
-            <FormLabel>Email</FormLabel>
+            <FormLabel htmlFor="settings-company-email">Email</FormLabel>
             <FormInput
+              id="settings-company-email"
               value={form.companyEmail}
               onChange={(e) => update("companyEmail", e.target.value)}
             />
@@ -117,8 +123,11 @@ export default function SettingsPage() {
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
         <h2 className="text-xl font-semibold mb-6">Sistema</h2>
         <div className="max-w-xs">
-          <FormLabel>Tempo de sessão</FormLabel>
+          <FormLabel htmlFor="settings-session-timeout">
+            Tempo de sessão
+          </FormLabel>
           <FormSelect
+            id="settings-session-timeout"
             value={form.sessionTimeout}
             onChange={(e) => update("sessionTimeout", e.target.value)}
           >

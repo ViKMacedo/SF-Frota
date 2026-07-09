@@ -328,6 +328,7 @@ export default function DriversPage() {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
+            aria-label="Página anterior"
             className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             ←
@@ -338,6 +339,7 @@ export default function DriversPage() {
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
+            aria-label="Próxima página"
             className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             →
@@ -352,26 +354,29 @@ export default function DriversPage() {
       >
         <div className="space-y-4">
           <div className="space-y-2">
-            <FormLabel>Nome</FormLabel>
+            <FormLabel htmlFor="driver-name">Nome</FormLabel>
             <FormInput
+              id="driver-name"
               placeholder="José Silva"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
           <div className="space-y-2">
-            <FormLabel>Usuário</FormLabel>
+            <FormLabel htmlFor="driver-registration">Usuário</FormLabel>
             <FormInput
+              id="driver-registration"
               placeholder="Zé"
               value={registration}
               onChange={(e) => setRegistration(e.target.value)}
             />
           </div>
           <div className="space-y-2">
-            <FormLabel>
+            <FormLabel htmlFor="driver-pin">
               PIN{editingId ? " (deixe em branco para não alterar)" : ""}
             </FormLabel>
             <FormInput
+              id="driver-pin"
               type="password"
               placeholder={editingId ? "Novo PIN (opcional)" : "1234"}
               value={pin}
@@ -380,8 +385,9 @@ export default function DriversPage() {
             />
           </div>
           <div className="space-y-2">
-            <FormLabel>Perfil</FormLabel>
+            <FormLabel htmlFor="driver-role">Perfil</FormLabel>
             <FormSelect
+              id="driver-role"
               value={role}
               onChange={(e) => setRole(e.target.value as "admin" | "driver")}
             >
@@ -390,8 +396,9 @@ export default function DriversPage() {
             </FormSelect>
           </div>
           <div className="space-y-2">
-            <FormLabel>CNH</FormLabel>
+            <FormLabel htmlFor="driver-license">CNH</FormLabel>
             <FormSelect
+              id="driver-license"
               value={license}
               onChange={(e) =>
                 setLicense(e.target.value as "A" | "B" | "C" | "D" | "E" | "AB")
@@ -406,8 +413,9 @@ export default function DriversPage() {
             </FormSelect>
           </div>
           <div className="space-y-2">
-            <FormLabel>Status</FormLabel>
+            <FormLabel htmlFor="driver-status">Status</FormLabel>
             <FormSelect
+              id="driver-status"
               value={status}
               onChange={(e) =>
                 setStatus(e.target.value as "Ativo" | "Afastado" | "Férias")
