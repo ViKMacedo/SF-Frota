@@ -1,16 +1,29 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   MapContainer,
   TileLayer,
   Polyline,
   Marker,
+  Tooltip,
   useMap,
 } from "react-leaflet";
 import { divIcon, LatLngBounds } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { Trip, RoutePoint } from "@/lib/db";
+
+const TILE_LAYERS = {
+  dark: {
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+  light: {
+    url: "https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png",
+    attribution: "&copy; OpenStreetMap",
+  },
+};
 
 // Ajusta o mapa para caber toda a rota
 function FitRoute({ points }: { points: [number, number][] }) {
@@ -45,9 +58,61 @@ function pinIcon(color: string) {
   });
 }
 
+function MapThemeToggle({
+  theme,
+  onToggle,
+}: {
+  theme: "dark" | "light";
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      aria-label={
+        theme === "dark" ? "Mudar para mapa claro" : "Mudar para mapa escuro"
+      }
+      className="absolute top-2 right-2 z-[1000] flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/90 text-white shadow-lg backdrop-blur transition hover:bg-zinc-800"
+    >
+      {theme === "dark" ? (
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+        </svg>
+      ) : (
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 type Props = { trip: Trip };
 
 export function RouteMap({ trip }: Props) {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const tile = TILE_LAYERS[theme];
+
   const pts: RoutePoint[] = trip.route ?? [];
   const hasRoute = pts.length >= 2;
 
@@ -75,9 +140,13 @@ export function RouteMap({ trip }: Props) {
   return (
     <div className="flex flex-col gap-3">
       <div
-        className="rounded-xl overflow-hidden border border-zinc-700"
+        className="relative rounded-xl overflow-hidden border border-zinc-700"
         style={{ height: 280 }}
       >
+        <MapThemeToggle
+          theme={theme}
+          onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+        />
         <MapContainer
           center={center}
           zoom={14}
@@ -85,10 +154,7 @@ export function RouteMap({ trip }: Props) {
           style={{ height: "100%", width: "100%" }}
           zoomControl={true}
         >
-          <TileLayer
-            attribution="&copy; OpenStreetMap"
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <TileLayer attribution={tile.attribution} url={tile.url} />
 
           {hasRoute && (
             <>
@@ -100,8 +166,28 @@ export function RouteMap({ trip }: Props) {
               <Marker
                 position={[start.lat, start.lng]}
                 icon={pinIcon("#22c55e")}
-              />
-              <Marker position={[end.lat, end.lng]} icon={pinIcon("#ef4444")} />
+              >
+                <Tooltip
+                  direction="top"
+                  offset={[0, -8]}
+                  opacity={1}
+                  permanent
+                  className="route-point-tooltip"
+                >
+                  Início
+                </Tooltip>
+              </Marker>
+              <Marker position={[end.lat, end.lng]} icon={pinIcon("#ef4444")}>
+                <Tooltip
+                  direction="top"
+                  offset={[0, -8]}
+                  opacity={1}
+                  permanent
+                  className="route-point-tooltip"
+                >
+                  Fim
+                </Tooltip>
+              </Marker>
             </>
           )}
 
@@ -113,6 +199,22 @@ export function RouteMap({ trip }: Props) {
           )}
         </MapContainer>
       </div>
+
+      <style jsx global>{`
+        .route-point-tooltip {
+          background: #18181b !important;
+          border: 1px solid #3f3f46 !important;
+          color: #fff !important;
+          font-size: 11px !important;
+          font-weight: 600 !important;
+          border-radius: 0.375rem !important;
+          padding: 2px 6px !important;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+        }
+        .route-point-tooltip::before {
+          border-top-color: #3f3f46 !important;
+        }
+      `}</style>
 
       {hasRoute && (
         <div className="grid grid-cols-3 gap-2 text-xs">
