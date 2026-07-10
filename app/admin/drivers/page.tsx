@@ -14,6 +14,7 @@ import { FormInput } from "@/components/admin/formInput";
 import { FormLabel } from "@/components/admin/formLabel";
 import { FormSelect } from "@/components/admin/formSelect";
 import { ActionMenu } from "@/components/admin/actionMenu";
+import { ConfirmDialog } from "@/components/admin/confirmDialog";
 
 import type { Driver } from "@/lib/db";
 import {
@@ -56,6 +57,7 @@ export default function DriversPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null);
   const [name, setName] = useState("");
   const [registration, setRegistration] = useState("");
   const [pin, setPin] = useState("");
@@ -297,10 +299,7 @@ export default function DriversPage() {
                       )
                     }
                     onEdit={() => handleEditDriver(driver)}
-                    onDelete={async () => {
-                      if (!driver.id) return;
-                      await deleteDriver(driver.id);
-                    }}
+                    onDelete={() => setDriverToDelete(driver)}
                   />
                 </TableCell>
               </TableRow>
@@ -431,6 +430,21 @@ export default function DriversPage() {
           </Button>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={driverToDelete !== null}
+        onOpenChange={(open) => !open && setDriverToDelete(null)}
+        title="Excluir motorista"
+        description={
+          driverToDelete
+            ? `Tem certeza que deseja excluir "${driverToDelete.name}"? Essa ação não pode ser desfeita.`
+            : ""
+        }
+        onConfirm={async () => {
+          if (!driverToDelete?.id) return;
+          await deleteDriver(driverToDelete.id);
+        }}
+      />
     </div>
   );
 }

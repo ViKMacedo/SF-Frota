@@ -16,6 +16,7 @@ import { FormInput } from "@/components/admin/formInput";
 import { FormLabel } from "@/components/admin/formLabel";
 import { FormSelect } from "@/components/admin/formSelect";
 import { ActionMenu } from "@/components/admin/actionMenu";
+import { ConfirmDialog } from "@/components/admin/confirmDialog";
 import { db, type Vehicle } from "@/lib/db";
 
 import {
@@ -57,6 +58,7 @@ export default function VehiclesPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
   const [selectedQrVehicle, setSelectedQrVehicle] = useState<Vehicle | null>(
     null,
   );
@@ -330,11 +332,7 @@ export default function VehiclesPage() {
                       )
                     }
                     onEdit={() => handleEditVehicle(vehicle)}
-                    onDelete={async () => {
-                      if (!vehicle.id) return;
-                      await deleteVehicle(vehicle.id);
-                      syncPendingItems();
-                    }}
+                    onDelete={() => setVehicleToDelete(vehicle)}
                     onQr={() => handleOpenQr(vehicle)}
                   />
                 </TableCell>
@@ -364,6 +362,7 @@ export default function VehiclesPage() {
             variant="outline"
             disabled={page === 1}
             onClick={() => setPage((p) => p - 1)}
+            aria-label="Página anterior"
             className="rounded-xl border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
           >
             ←
@@ -375,6 +374,7 @@ export default function VehiclesPage() {
             variant="outline"
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
+            aria-label="Próxima página"
             className="rounded-xl border-zinc-700 bg-zinc-900 hover:bg-indigo-600 hover:border-indigo-600"
           >
             →
@@ -416,16 +416,18 @@ export default function VehiclesPage() {
       >
         <div className="space-y-4">
           <div className="space-y-2">
-            <FormLabel>Modelo</FormLabel>
+            <FormLabel htmlFor="vehicle-model">Modelo</FormLabel>
             <FormInput
+              id="vehicle-model"
               placeholder="Fiat Palio"
               value={model}
               onChange={(e) => setModel(e.target.value)}
             />
           </div>
           <div className="space-y-2">
-            <FormLabel>Placa</FormLabel>
+            <FormLabel htmlFor="vehicle-plate">Placa</FormLabel>
             <FormInput
+              id="vehicle-plate"
               placeholder="ABC1234"
               value={plate}
               maxLength={7}
@@ -435,8 +437,9 @@ export default function VehiclesPage() {
             />
           </div>
           <div className="space-y-2">
-            <FormLabel>Tipo</FormLabel>
+            <FormLabel htmlFor="vehicle-type">Tipo</FormLabel>
             <FormSelect
+              id="vehicle-type"
               value={type}
               onChange={(e) =>
                 setType(e.target.value as "Carro" | "Caminhão" | "Caminhonete")
@@ -448,8 +451,9 @@ export default function VehiclesPage() {
             </FormSelect>
           </div>
           <div className="space-y-2">
-            <FormLabel>KM atual</FormLabel>
+            <FormLabel htmlFor="vehicle-km">KM atual</FormLabel>
             <FormInput
+              id="vehicle-km"
               type="text"
               inputMode="numeric"
               placeholder="120000"
@@ -459,8 +463,9 @@ export default function VehiclesPage() {
             />
           </div>
           <div className="space-y-2">
-            <FormLabel>Status</FormLabel>
+            <FormLabel htmlFor="vehicle-status">Status</FormLabel>
             <FormSelect
+              id="vehicle-status"
               value={status}
               onChange={(e) =>
                 setStatus(
@@ -484,6 +489,22 @@ export default function VehiclesPage() {
           </Button>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={vehicleToDelete !== null}
+        onOpenChange={(open) => !open && setVehicleToDelete(null)}
+        title="Excluir veículo"
+        description={
+          vehicleToDelete
+            ? `Tem certeza que deseja excluir "${vehicleToDelete.model} (${vehicleToDelete.plate})"? Essa ação não pode ser desfeita.`
+            : ""
+        }
+        onConfirm={async () => {
+          if (!vehicleToDelete?.id) return;
+          await deleteVehicle(vehicleToDelete.id);
+          syncPendingItems();
+        }}
+      />
     </div>
   );
 }
