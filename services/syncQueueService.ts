@@ -1,4 +1,4 @@
-import { db, Driver, Settings, Trip, Vehicle } from "@/lib/db";
+import { db, Driver, Refuel, Settings, Trip, Vehicle } from "@/lib/db";
 import { generateId } from "@/lib/generateId";
 
 // ✅ Itens que falharem mais de MAX_RETRIES vezes são descartados automaticamente
@@ -84,6 +84,21 @@ export async function addSettingsToQueue(
   await db.syncQueue.add({
     id: generateId(),
     entity: "settings",
+    operation,
+    payload,
+    synced: false,
+    createdAt: Date.now(),
+    retryCount: 0,
+  });
+}
+
+export async function addRefuelToQueue(
+  operation: "create" | "update" | "delete",
+  payload: Refuel,
+) {
+  await db.syncQueue.add({
+    id: generateId(),
+    entity: "refuel",
     operation,
     payload,
     synced: false,

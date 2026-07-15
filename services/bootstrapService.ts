@@ -9,6 +9,11 @@ function mapVehicle(vehicle: {
     km: number;
     last_driver?: string;
     last_used_at?: string;
+    consumo_medio_km_l?: number;
+    capacidade_tanque_l?: number;
+    ultimo_abastecimento_km?: number;
+    nivel_combustivel_estimado?: number;
+    manutencao?: Vehicle["manutencao"];
 }): Vehicle {
     return {
         id: vehicle.id,
@@ -19,6 +24,11 @@ function mapVehicle(vehicle: {
         km: vehicle.km,
         lastDriver: vehicle.last_driver,
         lastUsedAt: vehicle.last_used_at,
+        consumoMedioKmL: vehicle.consumo_medio_km_l,
+        capacidadeTanqueL: vehicle.capacidade_tanque_l,
+        ultimoAbastecimentoKm: vehicle.ultimo_abastecimento_km,
+        nivelCombustivelEstimado: vehicle.nivel_combustivel_estimado,
+        manutencao: vehicle.manutencao ?? undefined,
     };
 }
 

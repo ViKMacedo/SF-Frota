@@ -17,7 +17,13 @@ import { FormLabel } from "@/components/admin/formLabel";
 import { FormSelect } from "@/components/admin/formSelect";
 import { ActionMenu } from "@/components/admin/actionMenu";
 import { ConfirmDialog } from "@/components/admin/confirmDialog";
-import { db, type Vehicle } from "@/lib/db";
+import {
+  db,
+  type Vehicle,
+  type MaintenanceKey,
+  type MaintenanceState,
+  MAINTENANCE_LABELS,
+} from "@/lib/db";
 
 import {
   createVehicle,
@@ -72,6 +78,36 @@ export default function VehiclesPage() {
   const [status, setStatus] = useState<
     "Disponível" | "Em uso" | "Em manutenção" | "Inativo"
   >("Disponível");
+  const [consumoMedioKmL, setConsumoMedioKmL] = useState("");
+  const [capacidadeTanqueL, setCapacidadeTanqueL] = useState("");
+  const MAINTENANCE_KEYS: MaintenanceKey[] = [
+    "oleo",
+    "pneus",
+    "freios",
+    "filtros",
+  ];
+  const [manutencaoForm, setManutencaoForm] = useState<
+    Record<MaintenanceKey, { intervaloKm: string; intervaloDias: string }>
+  >({
+    oleo: { intervaloKm: "", intervaloDias: "" },
+    pneus: { intervaloKm: "", intervaloDias: "" },
+    freios: { intervaloKm: "", intervaloDias: "" },
+    filtros: { intervaloKm: "", intervaloDias: "" },
+  });
+
+  const [editingManutencao, setEditingManutencao] =
+    useState<MaintenanceState | null>(null);
+
+  function updateManutencaoForm(
+    item: MaintenanceKey,
+    field: "intervaloKm" | "intervaloDias",
+    value: string,
+  ) {
+    setManutencaoForm((prev) => ({
+      ...prev,
+      [item]: { ...prev[item], [field]: value.replace(/\D/g, "") },
+    }));
+  }
   const [formError, setFormError] = useState("");
   const [page, setPage] = useState(1);
 
@@ -130,6 +166,26 @@ export default function VehiclesPage() {
     }
     setFormError("");
     try {
+      const fuelFields = {
+        consumoMedioKmL: consumoMedioKmL ? Number(consumoMedioKmL) : undefined,
+        capacidadeTanqueL: capacidadeTanqueL
+          ? Number(capacidadeTanqueL)
+          : undefined,
+      };
+      const manutencao = MAINTENANCE_KEYS.reduce((acc, key) => {
+        const { intervaloKm, intervaloDias } = manutencaoForm[key];
+        const existing = editingManutencao?.[key];
+        acc[key] = {
+          intervaloKm: intervaloKm ? Number(intervaloKm) : 0,
+          intervaloDias: intervaloDias ? Number(intervaloDias) : 0,
+          // Se ainda não tem registro anterior, assume que a "contagem" começa
+          // agora (no KM/data da criação/edição do veículo).
+          ultimoKm: existing?.ultimoKm ?? Number(km),
+          ultimaData: existing?.ultimaData ?? new Date().toISOString(),
+        };
+        return acc;
+      }, {} as MaintenanceState);
+
       if (editingId !== null)
         await updateVehicle(editingId, {
           model,
@@ -137,8 +193,19 @@ export default function VehiclesPage() {
           type,
           km: Number(km),
           status,
+          ...fuelFields,
+          manutencao,
         });
-      else await createVehicle({ model, plate, type, km: Number(km), status });
+      else
+        await createVehicle({
+          model,
+          plate,
+          type,
+          km: Number(km),
+          status,
+          ...fuelFields,
+          manutencao,
+        });
     } catch (err) {
       setFormError(
         err instanceof Error ? err.message : "Erro ao salvar veículo.",
@@ -155,6 +222,15 @@ export default function VehiclesPage() {
     setKm("");
     setType("Carro");
     setStatus("Disponível");
+    setConsumoMedioKmL("");
+    setCapacidadeTanqueL("");
+    setManutencaoForm({
+      oleo: { intervaloKm: "", intervaloDias: "" },
+      pneus: { intervaloKm: "", intervaloDias: "" },
+      freios: { intervaloKm: "", intervaloDias: "" },
+      filtros: { intervaloKm: "", intervaloDias: "" },
+    });
+    setEditingManutencao(null);
     setEditingId(null);
     setFormError("");
     setOpen(false);
@@ -167,6 +243,31 @@ export default function VehiclesPage() {
     setKm(vehicle.km?.toString() || "");
     setType(vehicle.type);
     setStatus(vehicle.status);
+    setConsumoMedioKmL(vehicle.consumoMedioKmL?.toString() || "");
+    setCapacidadeTanqueL(vehicle.capacidadeTanqueL?.toString() || "");
+    setEditingManutencao(vehicle.manutencao ?? null);
+    setManutencaoForm({
+      oleo: {
+        intervaloKm: vehicle.manutencao?.oleo?.intervaloKm?.toString() || "",
+        intervaloDias:
+          vehicle.manutencao?.oleo?.intervaloDias?.toString() || "",
+      },
+      pneus: {
+        intervaloKm: vehicle.manutencao?.pneus?.intervaloKm?.toString() || "",
+        intervaloDias:
+          vehicle.manutencao?.pneus?.intervaloDias?.toString() || "",
+      },
+      freios: {
+        intervaloKm: vehicle.manutencao?.freios?.intervaloKm?.toString() || "",
+        intervaloDias:
+          vehicle.manutencao?.freios?.intervaloDias?.toString() || "",
+      },
+      filtros: {
+        intervaloKm: vehicle.manutencao?.filtros?.intervaloKm?.toString() || "",
+        intervaloDias:
+          vehicle.manutencao?.filtros?.intervaloDias?.toString() || "",
+      },
+    });
     setOpen(true);
     setOpenMenuId(null);
   }
@@ -483,6 +584,91 @@ export default function VehiclesPage() {
               <option value="Inativo">Inativo</option>
             </FormSelect>
           </div>
+          <div className="pt-2 border-t border-zinc-800">
+            <p className="text-xs text-zinc-500 mb-3">
+              Usado para estimar o nível de combustível (opcional)
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <FormLabel htmlFor="vehicle-consumo">Consumo (km/L)</FormLabel>
+                <FormInput
+                  id="vehicle-consumo"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Ex: 12"
+                  value={consumoMedioKmL}
+                  onChange={(e) =>
+                    setConsumoMedioKmL(e.target.value.replace(/[^0-9.]/g, ""))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <FormLabel htmlFor="vehicle-tanque">
+                  Capacidade tanque (L)
+                </FormLabel>
+                <FormInput
+                  id="vehicle-tanque"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Ex: 55"
+                  value={capacidadeTanqueL}
+                  onChange={(e) =>
+                    setCapacidadeTanqueL(e.target.value.replace(/[^0-9.]/g, ""))
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-zinc-800">
+            <p className="text-xs text-zinc-500 mb-3">
+              Manutenção preventiva — vence o que chegar primeiro (opcional)
+            </p>
+            <div className="space-y-3">
+              {MAINTENANCE_KEYS.map((key) => (
+                <div key={key} className="grid grid-cols-3 gap-3 items-end">
+                  <p className="text-sm text-zinc-300 pb-2">
+                    {MAINTENANCE_LABELS[key]}
+                  </p>
+                  <div className="space-y-2">
+                    <FormLabel htmlFor={`vehicle-manut-${key}-km`}>
+                      A cada (km)
+                    </FormLabel>
+                    <FormInput
+                      id={`vehicle-manut-${key}-km`}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="10000"
+                      value={manutencaoForm[key].intervaloKm}
+                      onChange={(e) =>
+                        updateManutencaoForm(key, "intervaloKm", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <FormLabel htmlFor={`vehicle-manut-${key}-dias`}>
+                      A cada (dias)
+                    </FormLabel>
+                    <FormInput
+                      id={`vehicle-manut-${key}-dias`}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="180"
+                      value={manutencaoForm[key].intervaloDias}
+                      onChange={(e) =>
+                        updateManutencaoForm(
+                          key,
+                          "intervaloDias",
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {formError && <p className="text-sm text-red-500">{formError}</p>}
           <Button className="w-full" onClick={handleCreateVehicle}>
             {editingId !== null ? "Salvar alterações" : "Salvar veículo"}

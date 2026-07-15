@@ -24,18 +24,20 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         className="
           relative z-10
           w-full max-w-lg
+          max-h-[85vh]
           rounded-3xl
           border border-zinc-800
           bg-zinc-950
-          p-8
           shadow-2xl
+          flex flex-col
         "
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between px-8 pt-8 pb-6 shrink-0">
           <h2 className="text-2xl font-bold">{title}</h2>
           <button
             onClick={onClose}
+            aria-label="Fechar"
             className="
               text-zinc-500
               hover:text-white
@@ -47,7 +49,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         </div>
 
         {/* Content */}
-        <div>{children}</div>
+        <div className="px-8 pb-8 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

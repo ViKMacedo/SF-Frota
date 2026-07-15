@@ -23,6 +23,15 @@ function mapVehicle(v: Record<string, unknown>): Vehicle {
         km: v.km as number,
         lastDriver: v.last_driver as string | undefined,
         lastUsedAt: v.last_used_at as string | undefined,
+        consumoMedioKmL: v.consumo_medio_km_l as number | undefined,
+        capacidadeTanqueL: v.capacidade_tanque_l as number | undefined,
+        ultimoAbastecimentoKm: v.ultimo_abastecimento_km as
+            | number
+            | undefined,
+        nivelCombustivelEstimado: v.nivel_combustivel_estimado as
+            | number
+            | undefined,
+        manutencao: (v.manutencao as Vehicle["manutencao"]) ?? undefined,
     };
 }
 

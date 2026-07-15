@@ -7,11 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { getActiveTrip } from "@/services/tripService";
-import { db, type Trip, type RoutePoint } from "@/lib/db";
+import { getVehicleById } from "@/services/vehicleService";
+import { getSession } from "@/services/sessionService";
+import { db, type Trip, type RoutePoint, type Vehicle } from "@/lib/db";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { TRACKING_STATUS, type TrackingStatus } from "@/constants/tracking";
 import { queueTripPositionUpdate } from "@/services/syncQueueService";
 import { syncPendingItems } from "@/services/syncService";
+import { RefuelModal } from "@/components/driver/refuelModal";
+import { FuelIndicatorCard } from "@/components/driver/fuelIndicatorCard";
 
 const MIN_POINT_INTERVAL_MS = 5000;
 
@@ -43,6 +47,12 @@ export default function DriverRunningPage() {
   const router = useRouter();
 
   const [trip, setTrip] = useState<Trip | null>(null);
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [session, setSession] = useState<{
+    userId: string;
+    name: string;
+  } | null>(null);
+  const [refuelOpen, setRefuelOpen] = useState(false);
   const [time, setTime] = useState("00:00");
   const [speed, setSpeed] = useState(0);
   const [statusLabel, setStatusLabel] = useState<TrackingStatus>(
@@ -61,6 +71,12 @@ export default function DriverRunningPage() {
         return;
       }
       setTrip(activeTrip);
+      const [v, s] = await Promise.all([
+        getVehicleById(activeTrip.vehicleId),
+        getSession(),
+      ]);
+      setVehicle(v ?? null);
+      if (s) setSession({ userId: s.userId, name: s.name });
     }
     loadTrip();
   }, [router]);
@@ -216,24 +232,9 @@ export default function DriverRunningPage() {
       <MobileLayout>
         <button
           onClick={() => router.back()}
-          aria-label="Voltar"
-          className="flex items-center gap-1.5 -ml-1 mb-6 px-3 min-h-11 text-sm font-medium text-indigo-200 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white active:bg-white/15 rounded-xl transition self-start"
+          className="text-sm text-indigo-300 mb-8 self-start"
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M19 12H5" />
-            <path d="M12 19l-7-7 7-7" />
-          </svg>
-          Voltar
+          ← Voltar
         </button>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
@@ -277,24 +278,9 @@ export default function DriverRunningPage() {
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={() => router.back()}
-          aria-label="Voltar"
-          className="flex items-center gap-1.5 -ml-1 mb-6 px-3 min-h-11 text-sm font-medium text-indigo-200 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white active:bg-white/15 rounded-xl transition self-start"
+          className="text-sm text-indigo-300"
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M19 12H5" />
-            <path d="M12 19l-7-7 7-7" />
-          </svg>
-          Voltar
+          ← Voltar
         </button>
         <span
           className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor}`}
@@ -307,6 +293,10 @@ export default function DriverRunningPage() {
       <p className="text-indigo-300 text-sm mb-8">
         {trip?.vehicleModel} • {trip?.vehiclePlate}
       </p>
+
+      {vehicle?.capacidadeTanqueL && trip && (
+        <FuelIndicatorCard vehicle={vehicle} currentKm={trip.startKm} />
+      )}
 
       <Card className="rounded-3xl p-6 bg-white text-zinc-900 border-none shadow-2xl">
         <div className="space-y-6">
@@ -332,14 +322,58 @@ export default function DriverRunningPage() {
         </div>
       </Card>
 
-      <div className="mt-auto pt-8">
+      <div className="mt-auto pt-8 space-y-3">
+        {vehicle && session && (
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setRefuelOpen(true)}
+              className="flex-1 h-12 rounded-2xl text-xl bg-green-500 text-zinc-100 border-green-500 font-semibold"
+            >
+              Abastecer
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => {}}
+              className="flex-1 h-12 rounded-2xl text-xl bg-red-500 text-zinc-100 border-red-500  font-semibold"
+            >
+              Socorro
+            </Button>
+          </div>
+        )}
         <Button
           onClick={() => router.push("/driver/end")}
-          className="w-full h-12 rounded-2xl text-base font-semibold"
+          className="w-full h-12 rounded-2xl text-xl font-semibold"
         >
           Finalizar uso
         </Button>
       </div>
+
+      {vehicle && session && trip && (
+        <RefuelModal
+          open={refuelOpen}
+          onOpenChange={setRefuelOpen}
+          vehicle={vehicle}
+          // Sugestão inicial pro campo de KM do modal — o motorista confere
+          // e corrige com o valor real do hodômetro na hora de abastecer.
+          currentKm={trip.startKm}
+          driverId={session.userId}
+          driverName={session.name}
+          tripId={trip.id}
+          onSuccess={(novoNivel, kmAbastecido) =>
+            setVehicle((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    nivelCombustivelEstimado: novoNivel,
+                    ultimoAbastecimentoKm: kmAbastecido,
+                  }
+                : prev,
+            )
+          }
+        />
+      )}
     </MobileLayout>
   );
 }
