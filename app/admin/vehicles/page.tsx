@@ -38,6 +38,7 @@ import {
   countOverdueItems,
   type MaintenanceItemStatus,
 } from "@/services/maintenanceService";
+import { ChevronRight } from "lucide-react";
 
 type SortField = "model" | "plate" | "type" | "km" | "status";
 type SortDir = "asc" | "desc";
@@ -378,7 +379,7 @@ export default function VehiclesPage() {
                   sortDir={sortDir}
                 />
               </button>,
-              "Ações",
+              "Perfil",
             ]}
           >
             {paginatedVehicles.map((vehicle) => {
@@ -413,21 +414,26 @@ export default function VehiclesPage() {
                     />
                   </TableCell>
                   <TableCell>
-                    <ActionMenu
-                      isOpen={openMenuId === vehicle.id}
-                      onToggle={() =>
-                        setOpenMenuId(
-                          openMenuId === vehicle.id
-                            ? null
-                            : (vehicle.id ?? null),
-                        )
-                      }
-                      onEdit={() =>
+                    <button
+                      onClick={() =>
                         router.push(`/admin/vehicles/${vehicle.id}`)
                       }
-                      onDelete={() => setVehicleToDelete(vehicle)}
-                      onQr={() => handleOpenQr(vehicle)}
-                    />
+                      className="
+                      h-10
+                      w-10
+                      flex
+                      items-center
+                      justify-center
+                      rounded-xl
+                      text-zinc-500
+                      hover:text-white
+                      hover:bg-zinc-800
+                      transition-all
+                      active:scale-95"
+                      title="Abrir veículo"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
                   </TableCell>
                 </TableRow>
               );

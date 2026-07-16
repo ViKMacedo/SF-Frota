@@ -512,7 +512,6 @@ export default function VehicleProfilePage() {
         </div>
       </div>
 
-      {/* Histórico de viagens */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
         <h2 className="text-lg font-semibold mb-4">Últimas viagens</h2>
         {trips.length === 0 ? (
