@@ -11,6 +11,21 @@ import { Card } from "@/components/ui/card";
 import { db, type Vehicle } from "@/lib/db";
 import { createTrip, getActiveTrip } from "@/services/tripService";
 import { getVehicleById } from "@/services/vehicleService";
+import { getDriverById } from "@/services/driverService";
+import {
+  canDriveVehicle,
+  inferRequiredLicense,
+} from "@/services/licenseService";
+import { LicenseWarningDialog } from "@/components/driver/licenseWarningDialog";
+import {
+  ArrowRight,
+  Car,
+  CircleCheck,
+  Gauge,
+  Info,
+  LoaderCircle,
+  Route,
+} from "lucide-react";
 
 export default function DriverStartPage({
   params,
@@ -20,6 +35,10 @@ export default function DriverStartPage({
   const router = useRouter();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [licenseWarning, setLicenseWarning] = useState<{
+    driverLicense: string;
+    requiredCategory: string;
+  } | null>(null);
   const session = useLiveQuery(() => db.sessions.get("current"), []);
 
   useEffect(() => {
@@ -45,11 +64,7 @@ export default function DriverStartPage({
     });
   }
 
-  async function handleStart() {
-    // Trava: impede múltiplas execuções por toque duplo/clique repetido
-    if (submitting) return;
-    setSubmitting(true);
-
+  async function proceedWithStart() {
     try {
       const activeTrip = await getActiveTrip();
 
@@ -81,6 +96,31 @@ export default function DriverStartPage({
     }
   }
 
+  async function handleStart() {
+    if (submitting) return;
+    setSubmitting(true);
+
+    if (!vehicle || !session) {
+      setSubmitting(false);
+      return;
+    }
+
+    const driver = await getDriverById(session.userId!);
+    if (driver) {
+      const requiredCategory = inferRequiredLicense(vehicle.type);
+      if (!canDriveVehicle(driver.license, requiredCategory)) {
+        setLicenseWarning({
+          driverLicense: driver.license,
+          requiredCategory,
+        });
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    await proceedWithStart();
+  }
+
   if (!vehicle) {
     return (
       <MobileLayout>
@@ -90,73 +130,177 @@ export default function DriverStartPage({
   }
 
   return (
-    <MobileLayout>
-      <button
-        onClick={() => router.back()}
-        aria-label="Voltar"
-        className="flex items-center gap-1.5 -ml-1 mb-6 px-3 min-h-11 text-sm font-medium text-indigo-200 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white active:bg-white/15 rounded-xl transition self-start"
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
+    <MobileLayout className="p-4 flex flex-col justify-between min-h-screen">
+      <div>
+        <button
+          onClick={() => router.back()}
+          aria-label="Voltar"
+          className="flex items-center gap-1.5 -ml-1 mb-6 px-3 min-h-11 text-sm font-medium text-indigo-200 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white active:bg-white/15 rounded-xl transition self-start"
         >
-          <path d="M19 12H5" />
-          <path d="M12 19l-7-7 7-7" />
-        </svg>
-        Voltar
-      </button>
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M19 12H5" />
+            <path d="M12 19l-7-7 7-7" />
+          </svg>
+          Voltar
+        </button>
 
-      <h1 className="text-3xl font-bold text-white mb-2">Iniciar uso</h1>
-      <p className="text-indigo-300 text-sm mb-8">
-        Confirme o veículo para iniciar a utilização
-      </p>
+        <h1 className="text-3xl font-bold text-white">Iniciar uso</h1>
 
-      <Card className="rounded-3xl p-5 border-indigo-800 bg-indigo-900/90 mb-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-700 flex items-center justify-center text-2xl">
-            🚗
-          </div>
-          <div>
-            <p className="text-xs text-indigo-200 mb-1">Veículo selecionado</p>
-            <p className="text-white font-semibold">{vehicle.model}</p>
-            <p className="text-xs text-indigo-300">{vehicle.plate}</p>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="rounded-3xl p-5 border-indigo-800 bg-indigo-900/90 mb-8">
-        <p className="text-xs text-indigo-300 mb-1">Odômetro atual</p>
-        <p className="text-4xl font-bold text-white">
-          {vehicle.km.toLocaleString("pt-BR")}
+        <p className="text-indigo-300 text-sm mb-8">
+          Confirme os dados abaixo antes de iniciar a viagem.
         </p>
-        <p className="text-xs text-indigo-300 mt-1">KM inicial da viagem</p>
-        <div className="mt-3 flex items-center gap-2 text-green-400 text-xs">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
-          Será registrado automaticamente
-        </div>
-        {vehicle.lastDriver && (
-          <p className="text-xs text-indigo-400 mt-2">
-            Último motorista: {vehicle.lastDriver}
-          </p>
-        )}
-      </Card>
 
-      <div className="mt-auto">
+        {/* Card: Veículo Selecionado */}
+        <Card className="mb-5 rounded-3xl p-5 bg-[#131526]/40 border border-white/5 text-white">
+          <div className="flex items-center gap-4">
+            <div
+              className="
+              flex
+              h-14
+              w-14
+              items-center
+              justify-center
+              rounded-full
+              bg-gradient-to-br from-indigo-600/80 to-indigo-700/80 shadow-lg"
+            >
+              <Car className="h-7 w-7 text-white" />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium uppercase tracking-wider text-indigo-300">
+                Veículo selecionado
+              </p>
+
+              <h2 className="mb-1 truncate text-xl font-bold text-white">
+                {vehicle.model}
+              </h2>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-xl bg-indigo-800/80 px-3 py-1 text-xs font-semibold text-white">
+                  {vehicle.plate}
+                </span>
+
+                {vehicle.lastDriver && (
+                  <span className="rounded-xl border border-indigo-700/40 px-3 py-1 text-xs text-indigo-200 bg-indigo-950/20">
+                    Último motorista: {vehicle.lastDriver}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Card: Resumo da Viagem */}
+        <Card className="mb-5 rounded-3xl p-6 bg-[#131526]/40 border border-white/5 text-white">
+          <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-indigo-300">
+            Resumo da viagem
+          </h3>
+
+          {/* Odômetro */}
+          <div className="flex items-start gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/10">
+              <Gauge className="h-8 w-8 text-indigo-400" strokeWidth={2} />
+            </div>
+
+            <div className="flex-1">
+              <p className="text-xs uppercase tracking-wide text-indigo-300">
+                Odômetro atual
+              </p>
+
+              <div className="mt-1 flex items-end gap-2">
+                <span className="text-4xl font-bold leading-none tracking-tight text-white">
+                  {vehicle.km.toLocaleString("pt-BR")}
+                </span>
+
+                <span className="pb-1 text-sm text-indigo-300">km</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="my-5 h-px bg-white/10" />
+
+          {/* KM inicial */}
+          <div className="flex items-start gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/10">
+              <Route className="h-8 w-8 text-emerald-400" strokeWidth={2} />
+            </div>
+
+            <div className="flex-1">
+              <p className="text-xs uppercase tracking-wide text-indigo-300">
+                KM inicial da viagem
+              </p>
+
+              <div className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2 border border-emerald-500/20">
+                <CircleCheck className="h-4 w-4 text-emerald-400" />
+
+                <span className="text-xs font-medium text-emerald-300">
+                  Será registrado automaticamente
+                </span>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Card: Informativo de Rastreamento */}
+        <Card className="mb-5 rounded-2xl p-4 bg-[#131526]/20 border border-white/5 text-white">
+          <div className="flex items-start gap-3">
+            <Info
+              className="mt-0.5 h-5 w-5 shrink-0 text-indigo-400"
+              strokeWidth={2}
+            />
+
+            <p className="text-xs leading-relaxed text-indigo-200">
+              Ao confirmar, o sistema registrará automaticamente o início da
+              viagem, utilizará o odômetro atual como KM inicial e iniciará o
+              rastreamento do veículo.
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      {/* Botão de Rodapé */}
+      <div className="mt-auto pt-6 border-t border-white/5">
         <Button
           onClick={handleStart}
           disabled={submitting}
-          className="w-full h-12 rounded-2xl text-base font-semibold disabled:opacity-60"
+          className="w-full h-14 bg-zinc-900 border border-white/10 hover:bg-zinc-850 text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-75"
         >
-          {submitting ? "Iniciando..." : "Confirmar e iniciar"}
+          {submitting ? (
+            <>
+              <LoaderCircle className="h-5 w-5 animate-spin text-white" />
+              Iniciando viagem...
+            </>
+          ) : (
+            <>
+              Confirmar e iniciar
+              <ArrowRight className="h-5 w-5" />
+            </>
+          )}
         </Button>
       </div>
+
+      {licenseWarning && (
+        <LicenseWarningDialog
+          open={licenseWarning !== null}
+          onOpenChange={(open) => !open && setLicenseWarning(null)}
+          driverLicense={licenseWarning.driverLicense}
+          requiredCategory={licenseWarning.requiredCategory}
+          onConfirm={() => {
+            setSubmitting(true);
+            proceedWithStart();
+          }}
+        />
+      )}
     </MobileLayout>
   );
 }

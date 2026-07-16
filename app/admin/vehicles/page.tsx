@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import QRCode from "qrcode";
 import Image from "next/image";
@@ -23,6 +24,7 @@ import {
   type MaintenanceKey,
   type MaintenanceState,
   MAINTENANCE_LABELS,
+  MAINTENANCE_KEYS,
 } from "@/lib/db";
 
 import {
@@ -31,6 +33,11 @@ import {
   deleteVehicle,
 } from "@/services/vehicleService";
 import { syncPendingItems } from "@/services/syncService";
+import {
+  getMaintenanceItemStatus,
+  countOverdueItems,
+  type MaintenanceItemStatus,
+} from "@/services/maintenanceService";
 
 type SortField = "model" | "plate" | "type" | "km" | "status";
 type SortDir = "asc" | "desc";
@@ -54,6 +61,7 @@ function SortIcon({
 }
 
 export default function VehiclesPage() {
+  const router = useRouter();
   const allVehiclesRaw = useLiveQuery(() => db.vehicles.toArray(), []);
   const loading = allVehiclesRaw === undefined;
 
@@ -80,12 +88,6 @@ export default function VehiclesPage() {
   >("Disponível");
   const [consumoMedioKmL, setConsumoMedioKmL] = useState("");
   const [capacidadeTanqueL, setCapacidadeTanqueL] = useState("");
-  const MAINTENANCE_KEYS: MaintenanceKey[] = [
-    "oleo",
-    "pneus",
-    "freios",
-    "filtros",
-  ];
   const [manutencaoForm, setManutencaoForm] = useState<
     Record<MaintenanceKey, { intervaloKm: string; intervaloDias: string }>
   >({
@@ -175,13 +177,23 @@ export default function VehiclesPage() {
       const manutencao = MAINTENANCE_KEYS.reduce((acc, key) => {
         const { intervaloKm, intervaloDias } = manutencaoForm[key];
         const existing = editingManutencao?.[key];
+        const intervaloKmNum = intervaloKm ? Number(intervaloKm) : 0;
+        const intervaloDiasNum = intervaloDias ? Number(intervaloDias) : 0;
+        const estaSendoConfiguradoAgora =
+          !existing && (intervaloKmNum > 0 || intervaloDiasNum > 0);
         acc[key] = {
-          intervaloKm: intervaloKm ? Number(intervaloKm) : 0,
-          intervaloDias: intervaloDias ? Number(intervaloDias) : 0,
-          // Se ainda não tem registro anterior, assume que a "contagem" começa
-          // agora (no KM/data da criação/edição do veículo).
-          ultimoKm: existing?.ultimoKm ?? Number(km),
-          ultimaData: existing?.ultimaData ?? new Date().toISOString(),
+          intervaloKm: intervaloKmNum,
+          intervaloDias: intervaloDiasNum,
+          // Só assume "a contagem começa agora" quando o item está sendo
+          // configurado pela primeira vez (tem intervalo definido e não
+          // tinha registro anterior). Itens deixados em branco continuam
+          // neutros (0/vazio) — sem isso, qualquer item sem intervalo
+          // acabava herdando um "feito hoje" só por estar no mesmo save.
+          ultimoKm:
+            existing?.ultimoKm ?? (estaSendoConfiguradoAgora ? Number(km) : 0),
+          ultimaData:
+            existing?.ultimaData ??
+            (estaSendoConfiguradoAgora ? new Date().toISOString() : ""),
         };
         return acc;
       }, {} as MaintenanceState);
@@ -234,42 +246,6 @@ export default function VehiclesPage() {
     setEditingId(null);
     setFormError("");
     setOpen(false);
-  }
-
-  function handleEditVehicle(vehicle: Vehicle) {
-    setEditingId(vehicle.id ?? null);
-    setModel(vehicle.model);
-    setPlate(vehicle.plate);
-    setKm(vehicle.km?.toString() || "");
-    setType(vehicle.type);
-    setStatus(vehicle.status);
-    setConsumoMedioKmL(vehicle.consumoMedioKmL?.toString() || "");
-    setCapacidadeTanqueL(vehicle.capacidadeTanqueL?.toString() || "");
-    setEditingManutencao(vehicle.manutencao ?? null);
-    setManutencaoForm({
-      oleo: {
-        intervaloKm: vehicle.manutencao?.oleo?.intervaloKm?.toString() || "",
-        intervaloDias:
-          vehicle.manutencao?.oleo?.intervaloDias?.toString() || "",
-      },
-      pneus: {
-        intervaloKm: vehicle.manutencao?.pneus?.intervaloKm?.toString() || "",
-        intervaloDias:
-          vehicle.manutencao?.pneus?.intervaloDias?.toString() || "",
-      },
-      freios: {
-        intervaloKm: vehicle.manutencao?.freios?.intervaloKm?.toString() || "",
-        intervaloDias:
-          vehicle.manutencao?.freios?.intervaloDias?.toString() || "",
-      },
-      filtros: {
-        intervaloKm: vehicle.manutencao?.filtros?.intervaloKm?.toString() || "",
-        intervaloDias:
-          vehicle.manutencao?.filtros?.intervaloDias?.toString() || "",
-      },
-    });
-    setOpen(true);
-    setOpenMenuId(null);
   }
 
   async function handleOpenQr(vehicle: Vehicle) {
@@ -405,40 +381,57 @@ export default function VehiclesPage() {
               "Ações",
             ]}
           >
-            {paginatedVehicles.map((vehicle) => (
-              <TableRow key={vehicle.id}>
-                <TableCell className="font-medium">{vehicle.model}</TableCell>
-                <TableCell>{vehicle.plate}</TableCell>
-                <TableCell>{vehicle.type}</TableCell>
-                <TableCell>{vehicle.km} km</TableCell>
-                <TableCell>
-                  <StatusBadge
-                    status={
-                      vehicle.status === "Em uso"
-                        ? "active"
-                        : vehicle.status === "Em manutenção"
-                          ? "maintenance"
-                          : vehicle.status === "Disponível"
-                            ? "available"
-                            : "inactive"
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  <ActionMenu
-                    isOpen={openMenuId === vehicle.id}
-                    onToggle={() =>
-                      setOpenMenuId(
-                        openMenuId === vehicle.id ? null : (vehicle.id ?? null),
-                      )
-                    }
-                    onEdit={() => handleEditVehicle(vehicle)}
-                    onDelete={() => setVehicleToDelete(vehicle)}
-                    onQr={() => handleOpenQr(vehicle)}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
+            {paginatedVehicles.map((vehicle) => {
+              const overdueCount = countOverdueItems(vehicle);
+              return (
+                <TableRow key={vehicle.id}>
+                  <TableCell className="font-medium">
+                    {vehicle.model}
+                    {overdueCount > 0 && (
+                      <span className="ml-2 inline-flex items-center gap-1 bg-red-500/10 text-red-400 text-xs font-medium px-2 py-0.5 rounded-full align-middle">
+                        ⚠{" "}
+                        {overdueCount === 1
+                          ? "1 pendência"
+                          : `${overdueCount} pendências`}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>{vehicle.plate}</TableCell>
+                  <TableCell>{vehicle.type}</TableCell>
+                  <TableCell>{vehicle.km} km</TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      status={
+                        vehicle.status === "Em uso"
+                          ? "active"
+                          : vehicle.status === "Em manutenção"
+                            ? "maintenance"
+                            : vehicle.status === "Disponível"
+                              ? "available"
+                              : "inactive"
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <ActionMenu
+                      isOpen={openMenuId === vehicle.id}
+                      onToggle={() =>
+                        setOpenMenuId(
+                          openMenuId === vehicle.id
+                            ? null
+                            : (vehicle.id ?? null),
+                        )
+                      }
+                      onEdit={() =>
+                        router.push(`/admin/vehicles/${vehicle.id}`)
+                      }
+                      onDelete={() => setVehicleToDelete(vehicle)}
+                      onQr={() => handleOpenQr(vehicle)}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
             {paginatedVehicles.length === 0 && (
               <TableRow>
                 <TableCell className="py-10 text-center text-zinc-500">
@@ -625,47 +618,89 @@ export default function VehiclesPage() {
               Manutenção preventiva — vence o que chegar primeiro (opcional)
             </p>
             <div className="space-y-3">
-              {MAINTENANCE_KEYS.map((key) => (
-                <div key={key} className="grid grid-cols-3 gap-3 items-end">
-                  <p className="text-sm text-zinc-300 pb-2">
-                    {MAINTENANCE_LABELS[key]}
-                  </p>
-                  <div className="space-y-2">
-                    <FormLabel htmlFor={`vehicle-manut-${key}-km`}>
-                      A cada (km)
-                    </FormLabel>
-                    <FormInput
-                      id={`vehicle-manut-${key}-km`}
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="10000"
-                      value={manutencaoForm[key].intervaloKm}
-                      onChange={(e) =>
-                        updateManutencaoForm(key, "intervaloKm", e.target.value)
-                      }
-                    />
+              {MAINTENANCE_KEYS.map((key) => {
+                const itemStatus: MaintenanceItemStatus | null =
+                  editingManutencao && km
+                    ? getMaintenanceItemStatus(
+                        editingManutencao[key],
+                        Number(km),
+                      )
+                    : null;
+                return (
+                  <div key={key} className="grid grid-cols-3 gap-3 items-end">
+                    <div className="pb-2">
+                      <p className="text-sm text-zinc-300">
+                        {MAINTENANCE_LABELS[key]}
+                      </p>
+                      {itemStatus && (
+                        <p
+                          className={`text-xs mt-0.5 flex items-center gap-1.5 ${
+                            itemStatus.urgency === "vencido"
+                              ? "text-red-400"
+                              : itemStatus.urgency === "proximo"
+                                ? "text-yellow-400"
+                                : itemStatus.urgency === "em-dia"
+                                  ? "text-green-400"
+                                  : "text-zinc-600"
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              itemStatus.urgency === "vencido"
+                                ? "bg-red-500"
+                                : itemStatus.urgency === "proximo"
+                                  ? "bg-yellow-500"
+                                  : itemStatus.urgency === "em-dia"
+                                    ? "bg-green-500"
+                                    : "bg-zinc-600"
+                            }`}
+                            aria-hidden="true"
+                          />
+                          {itemStatus.label}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <FormLabel htmlFor={`vehicle-manut-${key}-km`}>
+                        A cada (km)
+                      </FormLabel>
+                      <FormInput
+                        id={`vehicle-manut-${key}-km`}
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="10000"
+                        value={manutencaoForm[key].intervaloKm}
+                        onChange={(e) =>
+                          updateManutencaoForm(
+                            key,
+                            "intervaloKm",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <FormLabel htmlFor={`vehicle-manut-${key}-dias`}>
+                        A cada (dias)
+                      </FormLabel>
+                      <FormInput
+                        id={`vehicle-manut-${key}-dias`}
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="180"
+                        value={manutencaoForm[key].intervaloDias}
+                        onChange={(e) =>
+                          updateManutencaoForm(
+                            key,
+                            "intervaloDias",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <FormLabel htmlFor={`vehicle-manut-${key}-dias`}>
-                      A cada (dias)
-                    </FormLabel>
-                    <FormInput
-                      id={`vehicle-manut-${key}-dias`}
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="180"
-                      value={manutencaoForm[key].intervaloDias}
-                      onChange={(e) =>
-                        updateManutencaoForm(
-                          key,
-                          "intervaloDias",
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

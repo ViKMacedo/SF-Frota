@@ -10,6 +10,7 @@ import { TableRow } from "@/components/admin/tablerow";
 import { KpiCard } from "@/components/admin/kpicard";
 import { Header } from "@/components/admin/header";
 import { db } from "@/lib/db";
+import { countOverdueItems } from "@/services/maintenanceService";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -26,6 +27,8 @@ export default function AdminDashboardPage() {
     vehicles?.filter((v) => v.status === "Em uso").length ?? 0;
   const totalDrivers = drivers?.filter((d) => d.status === "Ativo").length ?? 0;
   const totalTrips = trips?.length ?? 0;
+  const vehiclesWithOverdueMaintenance =
+    vehicles?.filter((v) => countOverdueItems(v) > 0).length ?? 0;
 
   const totalPages = Math.ceil(totalTrips / ITEMS_PER_PAGE);
   const paginatedTrips = (trips ?? []).slice(
@@ -40,11 +43,18 @@ export default function AdminDashboardPage() {
         description="Visão geral da operação da frota"
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10 mt-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-10 mt-8">
         <KpiCard title="Carros Disponíveis" value={String(availableVehicles)} />
         <KpiCard title="Em uso" value={String(activeVehicles)} />
         <KpiCard title="Motoristas" value={String(totalDrivers)} />
         <KpiCard title="Utilizações" value={String(totalTrips)} />
+        <KpiCard
+          title="Manutenção vencida"
+          value={String(vehiclesWithOverdueMaintenance)}
+          valueClassName={
+            vehiclesWithOverdueMaintenance > 0 ? "text-red-400" : ""
+          }
+        />
       </div>
 
       <Table headers={["Motorista", "Veículo", "KM", "Status"]}>
@@ -73,6 +83,7 @@ export default function AdminDashboardPage() {
           <button
             disabled={page === 1}
             onClick={() => setPage((p) => p - 1)}
+            aria-label="Página anterior"
             className="h-10 px-4 rounded-xl border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             ←
@@ -85,6 +96,7 @@ export default function AdminDashboardPage() {
           <button
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
+            aria-label="Próxima página"
             className="h-10 px-4 rounded-xl border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-indigo-600 hover:border-indigo-600 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             →

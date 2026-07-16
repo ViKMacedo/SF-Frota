@@ -144,6 +144,7 @@ export function RefuelModal({
                 inputMode="numeric"
                 placeholder={String(currentKm)}
                 value={kmAbastecido}
+                maxLength={6}
                 autoFocus
                 onChange={(e) =>
                   setKmAbastecido(e.target.value.replace(/\D/g, ""))
@@ -159,11 +160,21 @@ export function RefuelModal({
                 id="refuel-litros"
                 type="text"
                 inputMode="decimal"
-                placeholder="18"
+                placeholder="0,00"
                 value={litros}
-                onChange={(e) =>
-                  setLitros(e.target.value.replace(/[^0-9,.]/g, ""))
-                }
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "");
+                  const truncatedDigits = digits.slice(0, 5);
+                  if (!truncatedDigits) {
+                    setLitros("");
+                    return;
+                  }
+                  const paddedDigits = truncatedDigits.padStart(3, "0");
+                  const integerPart = paddedDigits.slice(0, -2);
+                  const decimalPart = paddedDigits.slice(-2);
+                  const formattedInteger = Number(integerPart).toString();
+                  setLitros(`${formattedInteger},${decimalPart}`);
+                }}
               />
               {previewNivel !== undefined && (
                 <p className="text-xs text-zinc-500">

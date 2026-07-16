@@ -147,6 +147,13 @@ export const MAINTENANCE_LABELS: Record<MaintenanceKey, string> = {
   filtros: "Filtros",
 };
 
+export const MAINTENANCE_KEYS: MaintenanceKey[] = [
+  "oleo",
+  "pneus",
+  "freios",
+  "filtros",
+] as const;
+
 class AppDatabase extends Dexie {
   trips!: Table<Trip>;
   drivers!: Table<Driver>;
