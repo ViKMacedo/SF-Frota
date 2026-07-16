@@ -155,7 +155,7 @@ function LoginForm() {
   }
 
   return (
-    <MobileLayout className="bg-zinc-950">
+    <MobileLayout className="bg-[0B0D19]">
       <Toast toast={toast} onClose={clearToast} />
 
       <div className="flex-1 flex flex-col justify-center">

@@ -13,6 +13,9 @@ import { getVehicleById } from "@/services/vehicleService";
 import { getActiveTrip } from "@/services/tripService";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 
+// Ícones do Lucide para padronizar
+import { LogOut } from "lucide-react";
+
 export default function DriverScanPage() {
   useAuthGuard("driver");
 
@@ -26,6 +29,7 @@ export default function DriverScanPage() {
     }
     checkActiveTrip();
   }, [router]);
+
   useEffect(() => {
     const handlePageHide = () => {
       // Marca a página como não cacheável no bfcache
@@ -68,42 +72,39 @@ export default function DriverScanPage() {
   );
 
   return (
-    <MobileLayout>
+    <MobileLayout className="p-4 flex flex-col justify-between min-h-screen">
       <Toast toast={toast} onClose={clearToast} />
 
-      <button
-        onClick={async () => {
-          await clearSession();
-          router.replace("/login");
-        }}
-        aria-label="Voltar e sair"
-        className="flex items-center gap-1.5 -ml-1 mb-6 px-3 min-h-11 text-sm font-medium text-indigo-200 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white active:bg-white/15 rounded-xl transition self-start"
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
+      <div>
+        {/* Botão Sair / Voltar integrado */}
+        <button
+          onClick={async () => {
+            await clearSession();
+            router.replace("/login");
+          }}
+          aria-label="Sair e voltar ao login"
+          className="flex items-center gap-1.5 mb-6 px-3 min-h-11 text-sm font-medium text-zinc-300 bg-white/5 border border-white/5 hover:bg-white/10 hover:text-white active:bg-white/15 rounded-xl transition self-start"
         >
-          <path d="M19 12H5" />
-          <path d="M12 19l-7-7 7-7" />
-        </svg>
-        Voltar
-      </button>
+          <LogOut className="h-4.5 w-4.5 text-zinc-400" />
+          Sair
+        </button>
 
-      <h1 className="text-2xl font-bold text-white mb-2">Escanear QR Code</h1>
-      <p className="text-indigo-200 text-sm font-medium mb-8">
-        Aponte a câmera para o QR Code do veículo
-      </p>
+        {/* Textos de Apoio */}
+        <h1 className="text-3xl font-bold text-white mb-1">Escanear QR Code</h1>
+        <p className="text-indigo-300 text-sm mb-8">
+          Aponte a câmera para o QR Code fixado no veículo.
+        </p>
 
-      <div className="w-full rounded-3xl overflow-hidden border border-indigo-800 bg-indigo-900/50">
-        <QRScanner onScanSuccess={handleScanSuccess} />
+        {/* Container do Scanner modernizado (Translúcido e sutil) */}
+        <div className="w-full rounded-3xl overflow-hidden border border-white/5 bg-[#131526]/40 shadow-2xl p-2">
+          <div className="rounded-[20px] overflow-hidden">
+            <QRScanner onScanSuccess={handleScanSuccess} />
+          </div>
+        </div>
       </div>
+
+      {/* Espaçador sutil para manter o layout flexível igual às outras telas */}
+      <div className="w-full pb-6" />
     </MobileLayout>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import QRCode from "qrcode";
 import Image from "next/image";
@@ -16,7 +17,15 @@ import { FormInput } from "@/components/admin/formInput";
 import { FormLabel } from "@/components/admin/formLabel";
 import { FormSelect } from "@/components/admin/formSelect";
 import { ActionMenu } from "@/components/admin/actionMenu";
-import { db, type Vehicle } from "@/lib/db";
+import { ConfirmDialog } from "@/components/admin/confirmDialog";
+import {
+  db,
+  type Vehicle,
+  type MaintenanceKey,
+  type MaintenanceState,
+  MAINTENANCE_LABELS,
+  MAINTENANCE_KEYS,
+} from "@/lib/db";
 
 import {
   createVehicle,
@@ -24,6 +33,12 @@ import {
   deleteVehicle,
 } from "@/services/vehicleService";
 import { syncPendingItems } from "@/services/syncService";
+import {
+  getMaintenanceItemStatus,
+  countOverdueItems,
+  type MaintenanceItemStatus,
+} from "@/services/maintenanceService";
+import { ChevronRight } from "lucide-react";
 
 type SortField = "model" | "plate" | "type" | "km" | "status";
 type SortDir = "asc" | "desc";
@@ -47,6 +62,7 @@ function SortIcon({
 }
 
 export default function VehiclesPage() {
+  const router = useRouter();
   const allVehiclesRaw = useLiveQuery(() => db.vehicles.toArray(), []);
   const loading = allVehiclesRaw === undefined;
 
@@ -57,6 +73,7 @@ export default function VehiclesPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
   const [selectedQrVehicle, setSelectedQrVehicle] = useState<Vehicle | null>(
     null,
   );
@@ -70,6 +87,30 @@ export default function VehiclesPage() {
   const [status, setStatus] = useState<
     "Disponível" | "Em uso" | "Em manutenção" | "Inativo"
   >("Disponível");
+  const [consumoMedioKmL, setConsumoMedioKmL] = useState("");
+  const [capacidadeTanqueL, setCapacidadeTanqueL] = useState("");
+  const [manutencaoForm, setManutencaoForm] = useState<
+    Record<MaintenanceKey, { intervaloKm: string; intervaloDias: string }>
+  >({
+    oleo: { intervaloKm: "", intervaloDias: "" },
+    pneus: { intervaloKm: "", intervaloDias: "" },
+    freios: { intervaloKm: "", intervaloDias: "" },
+    filtros: { intervaloKm: "", intervaloDias: "" },
+  });
+
+  const [editingManutencao, setEditingManutencao] =
+    useState<MaintenanceState | null>(null);
+
+  function updateManutencaoForm(
+    item: MaintenanceKey,
+    field: "intervaloKm" | "intervaloDias",
+    value: string,
+  ) {
+    setManutencaoForm((prev) => ({
+      ...prev,
+      [item]: { ...prev[item], [field]: value.replace(/\D/g, "") },
+    }));
+  }
   const [formError, setFormError] = useState("");
   const [page, setPage] = useState(1);
 
@@ -128,6 +169,36 @@ export default function VehiclesPage() {
     }
     setFormError("");
     try {
+      const fuelFields = {
+        consumoMedioKmL: consumoMedioKmL ? Number(consumoMedioKmL) : undefined,
+        capacidadeTanqueL: capacidadeTanqueL
+          ? Number(capacidadeTanqueL)
+          : undefined,
+      };
+      const manutencao = MAINTENANCE_KEYS.reduce((acc, key) => {
+        const { intervaloKm, intervaloDias } = manutencaoForm[key];
+        const existing = editingManutencao?.[key];
+        const intervaloKmNum = intervaloKm ? Number(intervaloKm) : 0;
+        const intervaloDiasNum = intervaloDias ? Number(intervaloDias) : 0;
+        const estaSendoConfiguradoAgora =
+          !existing && (intervaloKmNum > 0 || intervaloDiasNum > 0);
+        acc[key] = {
+          intervaloKm: intervaloKmNum,
+          intervaloDias: intervaloDiasNum,
+          // Só assume "a contagem começa agora" quando o item está sendo
+          // configurado pela primeira vez (tem intervalo definido e não
+          // tinha registro anterior). Itens deixados em branco continuam
+          // neutros (0/vazio) — sem isso, qualquer item sem intervalo
+          // acabava herdando um "feito hoje" só por estar no mesmo save.
+          ultimoKm:
+            existing?.ultimoKm ?? (estaSendoConfiguradoAgora ? Number(km) : 0),
+          ultimaData:
+            existing?.ultimaData ??
+            (estaSendoConfiguradoAgora ? new Date().toISOString() : ""),
+        };
+        return acc;
+      }, {} as MaintenanceState);
+
       if (editingId !== null)
         await updateVehicle(editingId, {
           model,
@@ -135,8 +206,19 @@ export default function VehiclesPage() {
           type,
           km: Number(km),
           status,
+          ...fuelFields,
+          manutencao,
         });
-      else await createVehicle({ model, plate, type, km: Number(km), status });
+      else
+        await createVehicle({
+          model,
+          plate,
+          type,
+          km: Number(km),
+          status,
+          ...fuelFields,
+          manutencao,
+        });
     } catch (err) {
       setFormError(
         err instanceof Error ? err.message : "Erro ao salvar veículo.",
@@ -153,20 +235,18 @@ export default function VehiclesPage() {
     setKm("");
     setType("Carro");
     setStatus("Disponível");
+    setConsumoMedioKmL("");
+    setCapacidadeTanqueL("");
+    setManutencaoForm({
+      oleo: { intervaloKm: "", intervaloDias: "" },
+      pneus: { intervaloKm: "", intervaloDias: "" },
+      freios: { intervaloKm: "", intervaloDias: "" },
+      filtros: { intervaloKm: "", intervaloDias: "" },
+    });
+    setEditingManutencao(null);
     setEditingId(null);
     setFormError("");
     setOpen(false);
-  }
-
-  function handleEditVehicle(vehicle: Vehicle) {
-    setEditingId(vehicle.id ?? null);
-    setModel(vehicle.model);
-    setPlate(vehicle.plate);
-    setKm(vehicle.km?.toString() || "");
-    setType(vehicle.type);
-    setStatus(vehicle.status);
-    setOpen(true);
-    setOpenMenuId(null);
   }
 
   async function handleOpenQr(vehicle: Vehicle) {
@@ -299,47 +379,65 @@ export default function VehiclesPage() {
                   sortDir={sortDir}
                 />
               </button>,
-              "Ações",
+              "Perfil",
             ]}
           >
-            {paginatedVehicles.map((vehicle) => (
-              <TableRow key={vehicle.id}>
-                <TableCell className="font-medium">{vehicle.model}</TableCell>
-                <TableCell>{vehicle.plate}</TableCell>
-                <TableCell>{vehicle.type}</TableCell>
-                <TableCell>{vehicle.km} km</TableCell>
-                <TableCell>
-                  <StatusBadge
-                    status={
-                      vehicle.status === "Em uso"
-                        ? "active"
-                        : vehicle.status === "Em manutenção"
-                          ? "maintenance"
-                          : vehicle.status === "Disponível"
-                            ? "available"
-                            : "inactive"
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  <ActionMenu
-                    isOpen={openMenuId === vehicle.id}
-                    onToggle={() =>
-                      setOpenMenuId(
-                        openMenuId === vehicle.id ? null : (vehicle.id ?? null),
-                      )
-                    }
-                    onEdit={() => handleEditVehicle(vehicle)}
-                    onDelete={async () => {
-                      if (!vehicle.id) return;
-                      await deleteVehicle(vehicle.id);
-                      syncPendingItems();
-                    }}
-                    onQr={() => handleOpenQr(vehicle)}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
+            {paginatedVehicles.map((vehicle) => {
+              const overdueCount = countOverdueItems(vehicle);
+              return (
+                <TableRow key={vehicle.id}>
+                  <TableCell className="font-medium">
+                    {vehicle.model}
+                    {overdueCount > 0 && (
+                      <span className="ml-2 inline-flex items-center gap-1 bg-red-500/10 text-red-400 text-xs font-medium px-2 py-0.5 rounded-full align-middle">
+                        ⚠{" "}
+                        {overdueCount === 1
+                          ? "1 pendência"
+                          : `${overdueCount} pendências`}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>{vehicle.plate}</TableCell>
+                  <TableCell>{vehicle.type}</TableCell>
+                  <TableCell>{vehicle.km} km</TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      status={
+                        vehicle.status === "Em uso"
+                          ? "active"
+                          : vehicle.status === "Em manutenção"
+                            ? "maintenance"
+                            : vehicle.status === "Disponível"
+                              ? "available"
+                              : "inactive"
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      onClick={() =>
+                        router.push(`/admin/vehicles/${vehicle.id}`)
+                      }
+                      className="
+                      h-10
+                      w-10
+                      flex
+                      items-center
+                      justify-center
+                      rounded-xl
+                      text-zinc-500
+                      hover:text-white
+                      hover:bg-zinc-800
+                      transition-all
+                      active:scale-95"
+                      title="Abrir veículo"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
             {paginatedVehicles.length === 0 && (
               <TableRow>
                 <TableCell className="py-10 text-center text-zinc-500">
@@ -364,6 +462,7 @@ export default function VehiclesPage() {
             variant="outline"
             disabled={page === 1}
             onClick={() => setPage((p) => p - 1)}
+            aria-label="Página anterior"
             className="rounded-xl border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
           >
             ←
@@ -375,6 +474,7 @@ export default function VehiclesPage() {
             variant="outline"
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
+            aria-label="Próxima página"
             className="rounded-xl border-zinc-700 bg-zinc-900 hover:bg-indigo-600 hover:border-indigo-600"
           >
             →
@@ -416,16 +516,18 @@ export default function VehiclesPage() {
       >
         <div className="space-y-4">
           <div className="space-y-2">
-            <FormLabel>Modelo</FormLabel>
+            <FormLabel htmlFor="vehicle-model">Modelo</FormLabel>
             <FormInput
+              id="vehicle-model"
               placeholder="Fiat Palio"
               value={model}
               onChange={(e) => setModel(e.target.value)}
             />
           </div>
           <div className="space-y-2">
-            <FormLabel>Placa</FormLabel>
+            <FormLabel htmlFor="vehicle-plate">Placa</FormLabel>
             <FormInput
+              id="vehicle-plate"
               placeholder="ABC1234"
               value={plate}
               maxLength={7}
@@ -435,8 +537,9 @@ export default function VehiclesPage() {
             />
           </div>
           <div className="space-y-2">
-            <FormLabel>Tipo</FormLabel>
+            <FormLabel htmlFor="vehicle-type">Tipo</FormLabel>
             <FormSelect
+              id="vehicle-type"
               value={type}
               onChange={(e) =>
                 setType(e.target.value as "Carro" | "Caminhão" | "Caminhonete")
@@ -448,8 +551,9 @@ export default function VehiclesPage() {
             </FormSelect>
           </div>
           <div className="space-y-2">
-            <FormLabel>KM atual</FormLabel>
+            <FormLabel htmlFor="vehicle-km">KM atual</FormLabel>
             <FormInput
+              id="vehicle-km"
               type="text"
               inputMode="numeric"
               placeholder="120000"
@@ -459,8 +563,9 @@ export default function VehiclesPage() {
             />
           </div>
           <div className="space-y-2">
-            <FormLabel>Status</FormLabel>
+            <FormLabel htmlFor="vehicle-status">Status</FormLabel>
             <FormSelect
+              id="vehicle-status"
               value={status}
               onChange={(e) =>
                 setStatus(
@@ -478,12 +583,155 @@ export default function VehiclesPage() {
               <option value="Inativo">Inativo</option>
             </FormSelect>
           </div>
+          <div className="pt-2 border-t border-zinc-800">
+            <p className="text-xs text-zinc-500 mb-3">
+              Usado para estimar o nível de combustível (opcional)
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <FormLabel htmlFor="vehicle-consumo">Consumo (km/L)</FormLabel>
+                <FormInput
+                  id="vehicle-consumo"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Ex: 12"
+                  value={consumoMedioKmL}
+                  onChange={(e) =>
+                    setConsumoMedioKmL(e.target.value.replace(/[^0-9.]/g, ""))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <FormLabel htmlFor="vehicle-tanque">
+                  Capacidade tanque (L)
+                </FormLabel>
+                <FormInput
+                  id="vehicle-tanque"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Ex: 55"
+                  value={capacidadeTanqueL}
+                  onChange={(e) =>
+                    setCapacidadeTanqueL(e.target.value.replace(/[^0-9.]/g, ""))
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-zinc-800">
+            <p className="text-xs text-zinc-500 mb-3">
+              Manutenção preventiva — vence o que chegar primeiro (opcional)
+            </p>
+            <div className="space-y-3">
+              {MAINTENANCE_KEYS.map((key) => {
+                const itemStatus: MaintenanceItemStatus | null =
+                  editingManutencao && km
+                    ? getMaintenanceItemStatus(
+                        editingManutencao[key],
+                        Number(km),
+                      )
+                    : null;
+                return (
+                  <div key={key} className="grid grid-cols-3 gap-3 items-end">
+                    <div className="pb-2">
+                      <p className="text-sm text-zinc-300">
+                        {MAINTENANCE_LABELS[key]}
+                      </p>
+                      {itemStatus && (
+                        <p
+                          className={`text-xs mt-0.5 flex items-center gap-1.5 ${
+                            itemStatus.urgency === "vencido"
+                              ? "text-red-400"
+                              : itemStatus.urgency === "proximo"
+                                ? "text-yellow-400"
+                                : itemStatus.urgency === "em-dia"
+                                  ? "text-green-400"
+                                  : "text-zinc-600"
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              itemStatus.urgency === "vencido"
+                                ? "bg-red-500"
+                                : itemStatus.urgency === "proximo"
+                                  ? "bg-yellow-500"
+                                  : itemStatus.urgency === "em-dia"
+                                    ? "bg-green-500"
+                                    : "bg-zinc-600"
+                            }`}
+                            aria-hidden="true"
+                          />
+                          {itemStatus.label}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <FormLabel htmlFor={`vehicle-manut-${key}-km`}>
+                        A cada (km)
+                      </FormLabel>
+                      <FormInput
+                        id={`vehicle-manut-${key}-km`}
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="10000"
+                        value={manutencaoForm[key].intervaloKm}
+                        onChange={(e) =>
+                          updateManutencaoForm(
+                            key,
+                            "intervaloKm",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <FormLabel htmlFor={`vehicle-manut-${key}-dias`}>
+                        A cada (dias)
+                      </FormLabel>
+                      <FormInput
+                        id={`vehicle-manut-${key}-dias`}
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="180"
+                        value={manutencaoForm[key].intervaloDias}
+                        onChange={(e) =>
+                          updateManutencaoForm(
+                            key,
+                            "intervaloDias",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {formError && <p className="text-sm text-red-500">{formError}</p>}
           <Button className="w-full" onClick={handleCreateVehicle}>
             {editingId !== null ? "Salvar alterações" : "Salvar veículo"}
           </Button>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={vehicleToDelete !== null}
+        onOpenChange={(open) => !open && setVehicleToDelete(null)}
+        title="Excluir veículo"
+        description={
+          vehicleToDelete
+            ? `Tem certeza que deseja excluir "${vehicleToDelete.model} (${vehicleToDelete.plate})"? Essa ação não pode ser desfeita.`
+            : ""
+        }
+        onConfirm={async () => {
+          if (!vehicleToDelete?.id) return;
+          await deleteVehicle(vehicleToDelete.id);
+          syncPendingItems();
+        }}
+      />
     </div>
   );
 }

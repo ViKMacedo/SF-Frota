@@ -3,6 +3,7 @@ import { jwtVerify } from "jose";
 import { createClient } from "@supabase/supabase-js";
 import {
     DriverQueueItem,
+    RefuelQueueItem,
     Settings,
     SettingsQueueItem,
     SyncQueueItem,
@@ -21,6 +22,7 @@ const ENTITY_ORDER: Record<SyncQueueItem["entity"], number> = {
     driver: 0,
     vehicle: 1,
     trip: 2,
+    refuel: 3,
 };
 
 const DELETE_FLAG_BY_ENTITY: Record<
@@ -85,7 +87,7 @@ export async function POST(req: NextRequest) {
                     );
                 }
 
-                if (item.entity !== "settings") {
+                if (item.entity !== "settings" && item.entity !== "refuel") {
                     const flag = DELETE_FLAG_BY_ENTITY[item.entity];
                     if (!settings[flag]) {
                         throw new Error(
@@ -153,6 +155,8 @@ async function processItem(item: SyncQueueItem) {
             return processVehicle(item);
         case "trip":
             return processTrip(item);
+        case "refuel":
+            return processRefuel(item);
     }
 }
 
@@ -235,6 +239,11 @@ async function processVehicle(item: VehicleQueueItem) {
         km: payload.km,
         last_driver: payload.lastDriver,
         last_used_at: payload.lastUsedAt,
+        consumo_medio_km_l: payload.consumoMedioKmL,
+        capacidade_tanque_l: payload.capacidadeTanqueL,
+        ultimo_abastecimento_km: payload.ultimoAbastecimentoKm,
+        nivel_combustivel_estimado: payload.nivelCombustivelEstimado,
+        manutencao: payload.manutencao ?? null,
     };
 
     // Tenta upsert por id primeiro
@@ -289,6 +298,33 @@ async function processTrip(item: TripQueueItem) {
             speed: payload.speed,
             status_label: payload.statusLabel,
             route: payload.route ?? [],
+        },
+        { onConflict: "id" },
+    );
+    if (error) throw error;
+}
+
+async function processRefuel(item: RefuelQueueItem) {
+    if (item.operation === "delete") {
+        const { error } = await supabaseAdmin
+            .from("refuels")
+            .delete()
+            .eq("id", item.payload.id);
+        if (error) throw error;
+        return;
+    }
+
+    const { payload } = item;
+    const { error } = await supabaseAdmin.from("refuels").upsert(
+        {
+            id: payload.id,
+            vehicle_id: payload.vehicleId,
+            trip_id: payload.tripId ?? null,
+            driver_id: payload.driverId,
+            driver_name: payload.driverName,
+            litros: payload.litros,
+            km_atual: payload.kmAtual,
+            created_at: payload.createdAt,
         },
         { onConflict: "id" },
     );

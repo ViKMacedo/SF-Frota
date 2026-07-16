@@ -10,6 +10,7 @@ export function FormInput({ className, ...props }: FormInputProps) {
         w-full
         rounded-2xl
         border border-zinc-800
+        text-white
         bg-zinc-900
         px-4 py-3
         outline-none

@@ -44,11 +44,23 @@ export interface SettingsQueueItem {
   lastError?: string;
 }
 
+export interface RefuelQueueItem {
+  id: string;
+  entity: "refuel";
+  operation: "create" | "update" | "delete";
+  payload: Refuel;
+  synced: boolean;
+  createdAt: number;
+  retryCount: number;
+  lastError?: string;
+}
+
 export type SyncQueueItem =
   | DriverQueueItem
   | VehicleQueueItem
   | TripQueueItem
-  | SettingsQueueItem;
+  | SettingsQueueItem
+  | RefuelQueueItem;
 
 export interface RoutePoint {
   lat: number;
@@ -82,6 +94,32 @@ export interface Trip {
   route?: RoutePoint[];
 }
 
+// Histórico de abastecimentos — vinculado ao veículo (não só à viagem),
+// já que um veículo pode ser abastecido fora de uma viagem também.
+// tripId fica opcional: preenchido quando o abastecimento acontece durante
+// uma viagem em andamento, pra rastreabilidade, mas não é obrigatório.
+export interface Refuel {
+  id: string;
+  vehicleId: string;
+  tripId?: string;
+  driverId: string;
+  driverName: string;
+  litros: number;
+  kmAtual: number;
+  createdAt: string; // ISO
+}
+
+export type MaintenanceKey = "oleo" | "pneus" | "freios" | "filtros";
+
+export interface MaintenanceItemState {
+  intervaloKm: number;
+  intervaloDias: number;
+  ultimoKm: number;
+  ultimaData: string; // ISO date
+}
+
+export type MaintenanceState = Record<MaintenanceKey, MaintenanceItemState>;
+
 export interface Vehicle {
   id: string;
   model: string;
@@ -91,7 +129,30 @@ export interface Vehicle {
   km: number;
   lastDriver?: string;
   lastUsedAt?: string;
+  // Configuração usada para estimar o nível de combustível (não é leitura real de sensor)
+  consumoMedioKmL?: number;
+  capacidadeTanqueL?: number;
+  // Estado calculado a partir do último abastecimento registrado + km rodado desde então
+  ultimoAbastecimentoKm?: number;
+  nivelCombustivelEstimado?: number; // 0-100
+  // Manutenção preventiva: intervalo configurado por item + último registro.
+  // Vence o que chegar primeiro entre km rodado e tempo decorrido.
+  manutencao?: MaintenanceState;
 }
+
+export const MAINTENANCE_LABELS: Record<MaintenanceKey, string> = {
+  oleo: "Óleo",
+  pneus: "Pneus",
+  freios: "Freios",
+  filtros: "Filtros",
+};
+
+export const MAINTENANCE_KEYS: MaintenanceKey[] = [
+  "oleo",
+  "pneus",
+  "freios",
+  "filtros",
+] as const;
 
 class AppDatabase extends Dexie {
   trips!: Table<Trip>;
@@ -100,6 +161,7 @@ class AppDatabase extends Dexie {
   settings!: Table<Settings>;
   syncQueue!: Table<SyncQueueItem>;
   sessions!: Table<Session>;
+  refuels!: Table<Refuel>;
 
   constructor() {
     super("sf-frota-db");
@@ -110,6 +172,15 @@ class AppDatabase extends Dexie {
       settings: "id",
       syncQueue: "id,synced,entity",
       sessions: "id",
+    });
+    this.version(10).stores({
+      vehicles: "id, plate, status",
+      trips: "id, vehicleId, status",
+      drivers: "id, name, registration",
+      settings: "id",
+      syncQueue: "id,synced,entity",
+      sessions: "id",
+      refuels: "id, vehicleId, tripId",
     });
   }
 }
