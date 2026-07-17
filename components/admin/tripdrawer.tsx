@@ -1,7 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Trip } from "@/lib/db";
+import {
+  MAINTENANCE_KEYS,
+  MAINTENANCE_LABELS,
+  type Refuel,
+  Trip,
+  type Vehicle,
+} from "@/lib/db";
+import { getRefuelsByVehicle } from "@/services/refuelService";
+import { getVehicleById } from "@/services/vehicleService";
+import { Fuel, Wrench } from "lucide-react";
 
 const RouteMap = dynamic(
   () => import("@/components/admin/routemap").then((m) => m.RouteMap),
@@ -19,7 +29,39 @@ type Props = {
   onClose: () => void;
 };
 export function TripDrawer({ trip, open, onClose }: Props) {
+  const [refuels, setRefuels] = useState<Refuel[]>([]);
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+
+  useEffect(() => {
+    if (!trip) return;
+    let cancelled = false;
+    Promise.all([
+      getRefuelsByVehicle(trip.vehicleId),
+      getVehicleById(trip.vehicleId),
+    ]).then(([allRefuels, v]) => {
+      if (cancelled) return;
+      setRefuels(allRefuels.filter((r) => r.tripId === trip.id));
+      setVehicle(v ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [trip]);
+
   if (!trip) return null;
+
+  // Manutenção ainda não é vinculada a uma viagem específica no schema —
+  // aproximamos vendo se o KM registrado do item caiu dentro da faixa de
+  // KM percorrida nessa viagem (mesma lógica usada no perfil do veículo).
+  const kmFim = trip.endKm ?? vehicle?.km ?? trip.startKm;
+  const maintenanceDone = vehicle?.manutencao
+    ? MAINTENANCE_KEYS.filter((key) => {
+        const item = vehicle.manutencao?.[key];
+        if (!item?.ultimoKm) return false;
+        return item.ultimoKm >= trip.startKm && item.ultimoKm <= kmFim;
+      })
+    : [];
+
   return (
     <>
       <div
@@ -172,6 +214,67 @@ export function TripDrawer({ trip, open, onClose }: Props) {
                 <p className="font-semibold">{trip.duration ?? "-"}</p>
               </div>
             </div>
+          </div>
+
+          {/* Abastecimento */}
+          <div className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
+            <h3 className="font-semibold mb-4 text-white flex items-center gap-2">
+              <Fuel className="w-4 h-4 text-blue-400" />
+              Abastecimento
+            </h3>
+            {refuels.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                Nenhum abastecimento registrado nessa viagem.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {refuels.map((refuel) => (
+                  <div
+                    key={refuel.id}
+                    className="flex items-center justify-between gap-3 bg-blue-500/5 rounded-xl px-3 py-2.5"
+                  >
+                    <div>
+                      <p className="font-semibold text-blue-300">
+                        {refuel.litros} litros
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        no KM {refuel.kmAtual.toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                    <p className="text-xs text-zinc-500">
+                      {new Date(refuel.createdAt).toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Manutenção */}
+          <div className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
+            <h3 className="font-semibold mb-4 text-white flex items-center gap-2">
+              <Wrench className="w-4 h-4 text-yellow-400" />
+              Manutenção
+            </h3>
+            {maintenanceDone.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                Nenhuma manutenção registrada por volta dessa viagem.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {maintenanceDone.map((key) => (
+                  <span
+                    key={key}
+                    className="text-sm font-medium px-3 py-1.5 rounded-xl bg-yellow-500/10 text-yellow-400"
+                  >
+                    {MAINTENANCE_LABELS[key]}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Rota */}

@@ -1,5 +1,6 @@
-import { db, type Trip, type Vehicle } from "@/lib/db";
+import { db, type Refuel, type Trip, type Vehicle } from "@/lib/db";
 import { getSession } from "@/services/sessionService";
+import { getPendingQueue } from "@/services/syncQueueService";
 
 const LAST_PULL_KEY = "sf-frota:lastPullAt";
 
@@ -59,6 +60,19 @@ function mapTrip(t: Record<string, unknown>): Trip {
     };
 }
 
+function mapRefuel(r: Record<string, unknown>): Refuel {
+    return {
+        id: r.id as string,
+        vehicleId: r.vehicle_id as string,
+        tripId: (r.trip_id as string | undefined) ?? undefined,
+        driverId: r.driver_id as string,
+        driverName: r.driver_name as string,
+        litros: r.litros as number,
+        kmAtual: r.km_atual as number,
+        createdAt: r.created_at as string,
+    };
+}
+
 export async function pullFromSupabase() {
     const session = await getSession();
     if (!session?.token) return;
@@ -79,17 +93,50 @@ export async function pullFromSupabase() {
 
     if (!res.ok) return;
 
-    const { trips, vehicles } = await res.json();
+    const { trips, vehicles, refuels } = await res.json();
 
-    const mappedTrips = (trips as Record<string, unknown>[]).map(mapTrip);
-    const mappedVehicles = (vehicles as Record<string, unknown>[]).map(
-        mapVehicle,
+    // Descobre quais IDs têm alterações locais ainda não sincronizadas.
+    // Sem isso, um pull periódico pode chegar antes do push da fila de sync
+    // e sobrescrever (bulkPut) uma edição local recém-feita com o dado
+    // antigo vindo do servidor.
+    const pendingQueue = await getPendingQueue();
+    const pendingVehicleIds = new Set(
+        pendingQueue
+            .filter((item) => item.entity === "vehicle")
+            .map((item) => item.payload.id),
+    );
+    const pendingTripIds = new Set(
+        pendingQueue
+            .filter((item) => item.entity === "trip")
+            .map((item) => item.payload.id),
+    );
+    const pendingRefuelIds = new Set(
+        pendingQueue
+            .filter((item) => item.entity === "refuel")
+            .map((item) => item.payload.id),
     );
 
-    await db.transaction("rw", db.trips, db.vehicles, async () => {
-        await db.trips.bulkPut(mappedTrips);
-        await db.vehicles.bulkPut(mappedVehicles);
-    });
+    const mappedTrips = (trips as Record<string, unknown>[])
+        .map(mapTrip)
+        .filter((t) => !pendingTripIds.has(t.id));
+    const mappedVehicles = (vehicles as Record<string, unknown>[])
+        .map(mapVehicle)
+        .filter((v) => !pendingVehicleIds.has(v.id));
+    const mappedRefuels = (refuels as Record<string, unknown>[])
+        .map(mapRefuel)
+        .filter((r) => !pendingRefuelIds.has(r.id));
+
+    await db.transaction(
+        "rw",
+        db.trips,
+        db.vehicles,
+        db.refuels,
+        async () => {
+            await db.trips.bulkPut(mappedTrips);
+            await db.vehicles.bulkPut(mappedVehicles);
+            await db.refuels.bulkPut(mappedRefuels);
+        },
+    );
 
     setLastPullAt(new Date().toISOString());
 }

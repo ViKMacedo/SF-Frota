@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
             { data: activeTrips, error: activeError },
             { data: recentTrips, error: recentError },
             { data: vehicles, error: vehiclesError },
+            { data: refuels, error: refuelsError },
         ] = await Promise.all([
             // Duas queries separadas evitam o escape frágil do .or() com strings
             supabaseAdmin
@@ -42,7 +43,14 @@ export async function POST(req: NextRequest) {
                 .gte("ended_at", sinceDate),
 
             supabaseAdmin.from("vehicles").select("*"),
+
+            supabaseAdmin
+                .from("refuels")
+                .select("*")
+                .gte("created_at", sinceDate),
         ]);
+
+        if (refuelsError) throw refuelsError;
 
         if (activeError) throw activeError;
         if (recentError) throw recentError;
@@ -56,7 +64,7 @@ export async function POST(req: NextRequest) {
 
         if (vehiclesError) throw vehiclesError;
 
-        return NextResponse.json({ success: true, trips, vehicles });
+        return NextResponse.json({ success: true, trips, vehicles, refuels });
     } catch (error) {
         console.error("[PULL]", error);
         return NextResponse.json({ error: "Falha no pull" }, { status: 500 });
