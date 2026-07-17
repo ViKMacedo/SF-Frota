@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import QRCode from "qrcode";
 import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,6 @@ import { StatusBadge } from "@/components/admin/statusbadge";
 import { FormInput } from "@/components/admin/formInput";
 import { FormLabel } from "@/components/admin/formLabel";
 import { FormSelect } from "@/components/admin/formSelect";
-import { ActionMenu } from "@/components/admin/actionMenu";
 import { ConfirmDialog } from "@/components/admin/confirmDialog";
 import {
   db,
@@ -72,7 +70,6 @@ export default function VehiclesPage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
   const [selectedQrVehicle, setSelectedQrVehicle] = useState<Vehicle | null>(
     null,
@@ -247,14 +244,6 @@ export default function VehiclesPage() {
     setEditingId(null);
     setFormError("");
     setOpen(false);
-  }
-
-  async function handleOpenQr(vehicle: Vehicle) {
-    setSelectedQrVehicle(vehicle);
-    setQrCode(
-      await QRCode.toDataURL(JSON.stringify({ vehicleId: vehicle.id })),
-    );
-    setOpenMenuId(null);
   }
 
   return (
@@ -723,7 +712,8 @@ export default function VehiclesPage() {
         title="Excluir veículo"
         description={
           vehicleToDelete
-            ? `Tem certeza que deseja excluir "${vehicleToDelete.model} (${vehicleToDelete.plate})"? Essa ação não pode ser desfeita.`
+            ? `Tem certeza que deseja excluir "${vehicleToDelete.model} (${vehicleToDelete.plate})"?
+            Essa ação não pode ser desfeita.`
             : ""
         }
         onConfirm={async () => {

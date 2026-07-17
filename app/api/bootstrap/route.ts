@@ -50,35 +50,40 @@ export async function POST(req: NextRequest) {
 
         await jwtVerify(token, secret);
 
-        const [drivers, vehicles, trips, settingsRaw] = await Promise.all([
-            fetchAllPages(
-                () => supabaseAdmin.from("drivers"),
-                "drivers",
-            ),
-            fetchAllPages(
-                () => supabaseAdmin.from("vehicles"),
-                "vehicles",
-            ),
-            supabaseAdmin
-                .from("trips")
-                .select("*")
-                .or(
-                    `status.eq.Em andamento,ended_at.gte.${
-                        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-                            .toISOString()
-                    }`,
-                )
-                .then(({ data, error }) => {
-                    if (error) throw error;
-                    return data ?? [];
-                }),
-            supabaseAdmin
-                .from("settings")
-                .select("*")
-                .eq("id", 1)
-                .single()
-                .then(({ data }) => data),
-        ]);
+        const [drivers, vehicles, trips, refuels, settingsRaw] = await Promise
+            .all([
+                fetchAllPages(
+                    () => supabaseAdmin.from("drivers"),
+                    "drivers",
+                ),
+                fetchAllPages(
+                    () => supabaseAdmin.from("vehicles"),
+                    "vehicles",
+                ),
+                supabaseAdmin
+                    .from("trips")
+                    .select("*")
+                    .or(
+                        `status.eq.Em andamento,ended_at.gte.${
+                            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                                .toISOString()
+                        }`,
+                    )
+                    .then(({ data, error }) => {
+                        if (error) throw error;
+                        return data ?? [];
+                    }),
+                fetchAllPages(
+                    () => supabaseAdmin.from("refuels"),
+                    "refuels",
+                ),
+                supabaseAdmin
+                    .from("settings")
+                    .select("*")
+                    .eq("id", 1)
+                    .single()
+                    .then(({ data }) => data),
+            ]);
 
         const settings = settingsRaw
             ? {
@@ -99,6 +104,7 @@ export async function POST(req: NextRequest) {
             drivers,
             vehicles,
             trips,
+            refuels,
             settings,
         });
     } catch (error) {

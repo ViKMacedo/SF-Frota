@@ -1,4 +1,10 @@
-import { db, type Settings, type Trip, type Vehicle } from "@/lib/db";
+import {
+    db,
+    type Refuel,
+    type Settings,
+    type Trip,
+    type Vehicle,
+} from "@/lib/db";
 
 function mapVehicle(vehicle: {
     id: string;
@@ -84,6 +90,28 @@ function mapTrip(trip: {
     };
 }
 
+function mapRefuel(refuel: {
+    id: string;
+    vehicle_id: string;
+    trip_id?: string;
+    driver_id: string;
+    driver_name: string;
+    litros: number;
+    km_atual: number;
+    created_at: string;
+}): Refuel {
+    return {
+        id: refuel.id,
+        vehicleId: refuel.vehicle_id,
+        tripId: refuel.trip_id ?? undefined,
+        driverId: refuel.driver_id,
+        driverName: refuel.driver_name,
+        litros: refuel.litros,
+        kmAtual: refuel.km_atual,
+        createdAt: refuel.created_at,
+    };
+}
+
 export async function bootstrapDatabase(token: string) {
     const res = await fetch("/api/bootstrap", {
         method: "POST",
@@ -101,13 +129,11 @@ export async function bootstrapDatabase(token: string) {
 
     const vehicles = data.vehicles.map(mapVehicle);
     const trips = data.trips.map(mapTrip);
+    const refuels = (data.refuels ?? []).map(mapRefuel);
 
     await db.transaction(
         "rw",
-        db.drivers,
-        db.vehicles,
-        db.trips,
-        db.settings,
+        [db.drivers, db.vehicles, db.trips, db.settings, db.refuels],
         async () => {
             const unsyncedTrips = await db.trips
                 .filter((t) => t.synced === false)
@@ -116,9 +142,11 @@ export async function bootstrapDatabase(token: string) {
             await db.drivers.clear();
             await db.vehicles.clear();
             await db.trips.filter((t: Trip) => t.synced !== false).delete();
+            await db.refuels.clear();
 
             await db.drivers.bulkPut(data.drivers);
             await db.vehicles.bulkPut(vehicles);
+            await db.refuels.bulkPut(refuels);
 
             const unsyncedIds = new Set(unsyncedTrips.map((t) => t.id));
             const serverTripsToWrite = trips.filter(
@@ -137,6 +165,7 @@ export async function bootstrapDatabase(token: string) {
         drivers: data.drivers.length,
         vehicles: vehicles.length,
         trips: trips.length,
+        refuels: refuels.length,
         settings: data.settings ? 1 : 0,
     };
 }

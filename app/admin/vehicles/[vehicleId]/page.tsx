@@ -15,6 +15,7 @@ import {
   MAINTENANCE_LABELS,
   type MaintenanceKey,
   type MaintenanceState,
+  type Refuel,
   type Trip,
   type Vehicle,
 } from "@/lib/db";
@@ -24,13 +25,18 @@ import {
   deleteVehicle,
 } from "@/services/vehicleService";
 import { getTripsByVehicle } from "@/services/tripService";
-import { estimateFuelLevel, estimateRangeKm } from "@/services/refuelService";
+import {
+  estimateFuelLevel,
+  estimateRangeKm,
+  getRefuelsByVehicle,
+} from "@/services/refuelService";
 import { getVehicleMaintenanceStatus } from "@/services/maintenanceService";
 import { Card, CardContent } from "@/components/ui/card";
-import { Car, Pencil, QrCode, Trash2 } from "lucide-react";
+import { Car, Fuel, Pencil, QrCode, Trash2, User, Wrench } from "lucide-react";
 import QRCode from "qrcode";
 import Image from "next/image";
 import { Modal } from "@/components/admin/modal";
+import { TripDrawer } from "@/components/admin/tripdrawer";
 
 const URGENCY_STYLE: Record<string, string> = {
   vencido: "bg-red-500/10 text-red-400",
@@ -40,12 +46,15 @@ const URGENCY_STYLE: Record<string, string> = {
 };
 
 export default function VehicleProfilePage() {
+  const TRIPS_PER_PAGE = 8;
+  const [tripPage, setTripPage] = useState(1);
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const router = useRouter();
   const params = useParams<{ vehicleId: string }>();
   const vehicleId = params.vehicleId;
-
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [refuels, setRefuels] = useState<Refuel[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [, setSaving] = useState(false);
@@ -75,12 +84,14 @@ export default function VehicleProfilePage() {
 
   async function load() {
     setLoading(true);
-    const [v, t] = await Promise.all([
+    const [v, t, r] = await Promise.all([
       getVehicleById(vehicleId),
       getTripsByVehicle(vehicleId),
+      getRefuelsByVehicle(vehicleId),
     ]);
     setVehicle(v ?? null);
     setTrips(t);
+    setRefuels(r);
     setLoading(false);
   }
 
@@ -98,20 +109,23 @@ export default function VehicleProfilePage() {
         return "inactive";
     }
   }
+
   useEffect(() => {
     let cancelled = false;
 
     async function fetchVehicle() {
       setLoading(true);
 
-      const [v, t] = await Promise.all([
+      const [v, t, r] = await Promise.all([
         getVehicleById(vehicleId),
         getTripsByVehicle(vehicleId),
+        getRefuelsByVehicle(vehicleId),
       ]);
 
       if (cancelled) return;
       setVehicle(v ?? null);
       setTrips(t);
+      setRefuels(r);
       setLoading(false);
     }
 
@@ -231,6 +245,24 @@ export default function VehicleProfilePage() {
     setSelectedQrVehicle(vehicle);
   }
 
+  function getTripIndicators(trip: Trip) {
+    const hasRefuel = refuels.some((r) => r.tripId === trip.id);
+
+    const kmFim = trip.endKm ?? vehicle!.km;
+    const hasMaintenance = MAINTENANCE_KEYS.some((key) => {
+      const item = vehicle!.manutencao?.[key];
+      if (!item?.ultimoKm) return false;
+      return item.ultimoKm >= trip.startKm && item.ultimoKm <= kmFim;
+    });
+
+    return { hasRefuel, hasMaintenance };
+  }
+  const totalTripPages = Math.max(1, Math.ceil(trips.length / TRIPS_PER_PAGE));
+
+  const paginatedTrips = trips.slice(
+    (tripPage - 1) * TRIPS_PER_PAGE,
+    tripPage * TRIPS_PER_PAGE,
+  );
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <button
@@ -275,7 +307,7 @@ export default function VehicleProfilePage() {
 
             <div className="w-full max-w-[200px]">
               {" "}
-              <Card variant="default">
+              <Card>
                 {" "}
                 <CardContent className="p-3">
                   {" "}
@@ -512,37 +544,160 @@ export default function VehicleProfilePage() {
         </div>
       </div>
 
+      {/* Histórico de viagens — timeline */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
-        <h2 className="text-lg font-semibold mb-4">Últimas viagens</h2>
+        <h2 className="text-lg font-semibold mb-5">Últimas viagens</h2>
         {trips.length === 0 ? (
           <p className="text-sm text-zinc-500">
             Nenhuma viagem registrada ainda.
           </p>
         ) : (
-          <div className="flex flex-col divide-y divide-zinc-800">
-            {trips.slice(0, 10).map((trip) => (
-              <div
-                key={trip.id}
-                className="py-3 flex items-center justify-between gap-3 text-sm"
-              >
-                <span className="font-medium">{trip.driverName}</span>
-                <span className="text-zinc-500">
-                  {new Date(trip.startedAt).toLocaleDateString("pt-BR", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-                <span className="text-zinc-400">
-                  {trip.distance !== undefined
-                    ? `${trip.distance} km`
-                    : trip.status === "Em andamento"
-                      ? "Em andamento"
-                      : "—"}
-                </span>
+          <div className="flex flex-col">
+            {paginatedTrips.map((trip, index) => {
+              const isLast = index === paginatedTrips.length - 1;
+              const isOngoing = trip.status === "Em andamento";
+              const { hasRefuel, hasMaintenance } = getTripIndicators(trip);
+              const startedAtDate = new Date(trip.startedAt);
+
+              return (
+                <div key={trip.id} className="flex gap-4">
+                  {/* Coluna do timeline: bolinha + linha conectora */}
+                  <div className="flex flex-col items-center w-3 shrink-0">
+                    <span
+                      className={`w-3 h-3 rounded-full mt-5 shrink-0 ring-4 ${
+                        isOngoing
+                          ? "bg-green-500 ring-green-500/15"
+                          : "bg-indigo-500 ring-indigo-500/15"
+                      }`}
+                      aria-hidden="true"
+                    />
+                    {!isLast && (
+                      <div className="w-0.5 flex-1 bg-zinc-800 my-1 rounded-full" />
+                    )}
+                  </div>
+
+                  {/* Card da viagem */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTrip(trip)}
+                    className={`
+                    group
+                    flex-1
+                    min-w-0
+                    text-left
+                    bg-zinc-800/40
+                    border
+                    border-zinc-800
+                    rounded-2xl
+                    px-4
+                    py-3.5
+                    transition-all
+                    duration-200
+                    hover:border-indigo-500/40
+                    hover:bg-zinc-800/70
+                    hover:-translate-y-0.5
+                    hover:shadow-lg
+                    active:scale-[0.99]
+                    ${isLast ? "mb-0" : "mb-3"}
+                    `}
+                  >
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-full bg-zinc-700/60 flex items-center justify-center shrink-0">
+                          <User className="w-3.5 h-3.5 text-zinc-300" />
+                        </div>
+                        <span className="font-semibold text-sm truncate">
+                          {trip.driverName}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${
+                          isOngoing
+                            ? "bg-green-500/10 text-green-400"
+                            : "bg-zinc-700/50 text-zinc-300"
+                        }`}
+                      >
+                        {isOngoing ? "Em andamento" : "Concluída"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 mt-2.5 flex-wrap">
+                      <p className="text-xs text-zinc-500">
+                        {startedAtDate.toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}{" "}
+                        &middot;{" "}
+                        {startedAtDate.toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                      {trip.distance !== undefined && (
+                        <span className="text-xs font-medium text-zinc-400">
+                          {trip.distance} km
+                        </span>
+                      )}
+                    </div>
+
+                    {(hasRefuel || hasMaintenance) && (
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-800 flex-wrap">
+                        {hasRefuel && (
+                          <span
+                            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400"
+                            title="Abastecimento registrado nessa viagem"
+                          >
+                            <Fuel className="w-3 h-3" />
+                            Abastecimento
+                          </span>
+                        )}
+                        {hasMaintenance && (
+                          <span
+                            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400"
+                            title="Manutenção registrada por volta dessa viagem"
+                          >
+                            <Wrench className="w-3 h-3" />
+                            Manutenção
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+            {trips.length > TRIPS_PER_PAGE && (
+              <div className="mt-6 pt-5 border-t border-zinc-800 flex items-center justify-between">
+                <p className="text-sm text-zinc-500">
+                  Mostrando {(tripPage - 1) * TRIPS_PER_PAGE + 1}–
+                  {Math.min(tripPage * TRIPS_PER_PAGE, trips.length)} de{" "}
+                  {trips.length} viagens
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    disabled={tripPage === 1}
+                    onClick={() => setTripPage((p) => p - 1)}
+                  >
+                    ←
+                  </Button>
+
+                  <span className="text-sm text-zinc-400">
+                    Página {tripPage} de {totalTripPages}
+                  </span>
+
+                  <Button
+                    className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    disabled={tripPage === totalTripPages}
+                    onClick={() => setTripPage((p) => p + 1)}
+                  >
+                    →
+                  </Button>
+                </div>
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
@@ -584,6 +739,11 @@ export default function VehicleProfilePage() {
           await deleteVehicle(vehicle.id);
           router.push("/admin/vehicles");
         }}
+      />
+      <TripDrawer
+        trip={selectedTrip}
+        open={!!selectedTrip}
+        onClose={() => setSelectedTrip(null)}
       />
     </div>
   );
