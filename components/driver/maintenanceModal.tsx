@@ -16,6 +16,8 @@ import {
 import { syncPendingItems } from "@/services/syncService";
 import { Toast } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
+import { CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface MaintenanceModalProps {
   open: boolean;
@@ -40,6 +42,10 @@ export function MaintenanceModal({
   onSuccess,
 }: MaintenanceModalProps) {
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [successInfo, setSuccessInfo] = useState<{
+    label: string;
+    km: number;
+  } | null>(null);
   const { toast, showToast, clearToast } = useToast();
 
   const statuses = getVehicleMaintenanceStatus(vehicle, currentKm);
@@ -49,14 +55,11 @@ export function MaintenanceModal({
     try {
       await registerMaintenanceDone(vehicle.id, itemKey, currentKm);
       await syncPendingItems();
-      showToast(
-        `${MAINTENANCE_LABELS[itemKey]} registrado com KM ${currentKm.toLocaleString("pt-BR")}`,
-        "success",
-      );
       const updated = await import("@/lib/db").then((m) =>
         m.db.vehicles.get(vehicle.id),
       );
       if (updated) onSuccess?.(updated);
+      setSuccessInfo({ label: MAINTENANCE_LABELS[itemKey], km: currentKm });
     } catch {
       showToast("Erro ao registrar manutenção.", "error");
     } finally {
@@ -64,51 +67,83 @@ export function MaintenanceModal({
     }
   }
 
+  function handleOpenChange(next: boolean) {
+    if (!next) setSuccessInfo(null);
+    onOpenChange(next);
+  }
+
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="border border-zinc-800 bg-zinc-950 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-white">
-              Registrar manutenção
-            </DialogTitle>
-            <DialogDescription className="text-zinc-400">
-              Toque no item que foi feito agora. Vai gravar o KM e a data de
-              hoje como referência.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-2">
-            {MAINTENANCE_KEYS.map((key) => {
-              const status = statuses?.[key];
-              return (
-                <button
-                  key={key}
-                  onClick={() => handleRegister(key)}
-                  disabled={savingKey !== null}
-                  className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 text-left hover:bg-zinc-800 active:bg-zinc-800/70 transition disabled:opacity-50 min-h-14"
+          {successInfo ? (
+            <>
+              <DialogHeader className="items-center text-center">
+                <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-green-500/10">
+                  <CheckCircle2 className="h-8 w-8 text-green-400" />
+                </div>
+                <DialogTitle className="text-white">
+                  Manutenção registrada!
+                </DialogTitle>
+                <DialogDescription className="text-zinc-400">
+                  {successInfo.label} • KM{" "}
+                  {successInfo.km.toLocaleString("pt-BR")}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-center pt-2">
+                <Button
+                  onClick={() => handleOpenChange(false)}
+                  className="bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30 w-full sm:w-auto"
                 >
-                  <div>
-                    <p className="text-white text-sm font-medium">
-                      {MAINTENANCE_LABELS[key]}
-                    </p>
-                    {status && (
-                      <p className="text-zinc-500 text-xs mt-0.5 flex items-center gap-1.5">
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${URGENCY_DOT[status.urgency]}`}
-                          aria-hidden="true"
-                        />
-                        {status.label}
-                      </p>
-                    )}
-                  </div>
-                  <span className="text-zinc-500 text-xs">
-                    {savingKey === key ? "Salvando..." : "Registrar"}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                  Concluir
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-white">
+                  Registrar manutenção
+                </DialogTitle>
+                <DialogDescription className="text-zinc-400">
+                  Toque no item que foi feito agora. Vai gravar o KM e a data de
+                  hoje como referência.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex flex-col gap-2">
+                {MAINTENANCE_KEYS.map((key) => {
+                  const status = statuses?.[key];
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleRegister(key)}
+                      disabled={savingKey !== null}
+                      className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 text-left hover:bg-zinc-800 active:bg-zinc-800/70 transition disabled:opacity-50 min-h-14"
+                    >
+                      <div>
+                        <p className="text-white text-sm font-medium">
+                          {MAINTENANCE_LABELS[key]}
+                        </p>
+                        {status && (
+                          <p className="text-zinc-500 text-xs mt-0.5 flex items-center gap-1.5">
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${URGENCY_DOT[status.urgency]}`}
+                              aria-hidden="true"
+                            />
+                            {status.label}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-zinc-500 text-xs">
+                        {savingKey === key ? "Salvando..." : "Registrar"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
       <Toast toast={toast} onClose={clearToast} />

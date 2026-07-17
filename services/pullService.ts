@@ -1,5 +1,6 @@
 import { db, type Refuel, type Trip, type Vehicle } from "@/lib/db";
 import { getSession } from "@/services/sessionService";
+import { getPendingQueue } from "@/services/syncQueueService";
 
 const LAST_PULL_KEY = "sf-frota:lastPullAt";
 
@@ -94,13 +95,36 @@ export async function pullFromSupabase() {
 
     const { trips, vehicles, refuels } = await res.json();
 
-    const mappedTrips = (trips as Record<string, unknown>[]).map(mapTrip);
-    const mappedVehicles = (vehicles as Record<string, unknown>[]).map(
-        mapVehicle,
+    // Descobre quais IDs têm alterações locais ainda não sincronizadas.
+    // Sem isso, um pull periódico pode chegar antes do push da fila de sync
+    // e sobrescrever (bulkPut) uma edição local recém-feita com o dado
+    // antigo vindo do servidor.
+    const pendingQueue = await getPendingQueue();
+    const pendingVehicleIds = new Set(
+        pendingQueue
+            .filter((item) => item.entity === "vehicle")
+            .map((item) => item.payload.id),
     );
-    const mappedRefuels = (refuels as Record<string, unknown>[]).map(
-        mapRefuel,
+    const pendingTripIds = new Set(
+        pendingQueue
+            .filter((item) => item.entity === "trip")
+            .map((item) => item.payload.id),
     );
+    const pendingRefuelIds = new Set(
+        pendingQueue
+            .filter((item) => item.entity === "refuel")
+            .map((item) => item.payload.id),
+    );
+
+    const mappedTrips = (trips as Record<string, unknown>[])
+        .map(mapTrip)
+        .filter((t) => !pendingTripIds.has(t.id));
+    const mappedVehicles = (vehicles as Record<string, unknown>[])
+        .map(mapVehicle)
+        .filter((v) => !pendingVehicleIds.has(v.id));
+    const mappedRefuels = (refuels as Record<string, unknown>[])
+        .map(mapRefuel)
+        .filter((r) => !pendingRefuelIds.has(r.id));
 
     await db.transaction(
         "rw",

@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/admin/statusbadge";
 import { FormInput } from "@/components/admin/formInput";
 import { FormLabel } from "@/components/admin/formLabel";
 import { FormSelect } from "@/components/admin/formSelect";
 import { ConfirmDialog } from "@/components/admin/confirmDialog";
-
 import {
   MAINTENANCE_KEYS,
   MAINTENANCE_LABELS,
@@ -52,20 +50,20 @@ export default function VehicleProfilePage() {
   const router = useRouter();
   const params = useParams<{ vehicleId: string }>();
   const vehicleId = params.vehicleId;
+
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [refuels, setRefuels] = useState<Refuel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [, setSaving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedQrVehicle, setSelectedQrVehicle] = useState<Vehicle | null>(
     null,
   );
-
   const [qrCode, setQrCode] = useState("");
 
-  // Estado do formulário (só usado quando editing = true)
+  // Estado do formulário
   const [model, setModel] = useState("");
   const [plate, setPlate] = useState("");
   const [type, setType] = useState<Vehicle["type"]>("Carro");
@@ -82,23 +80,10 @@ export default function VehicleProfilePage() {
     filtros: { intervaloKm: "", intervaloDias: "" },
   });
 
-  async function load() {
-    setLoading(true);
-    const [v, t, r] = await Promise.all([
-      getVehicleById(vehicleId),
-      getTripsByVehicle(vehicleId),
-      getRefuelsByVehicle(vehicleId),
-    ]);
-    setVehicle(v ?? null);
-    setTrips(t);
-    setRefuels(r);
-    setLoading(false);
-  }
-
   function vehicleStatusToBadge(
-    status: Vehicle["status"],
+    s: Vehicle["status"],
   ): "active" | "maintenance" | "available" | "inactive" {
-    switch (status) {
+    switch (s) {
       case "Em uso":
         return "active";
       case "Em manutenção":
@@ -110,40 +95,41 @@ export default function VehicleProfilePage() {
     }
   }
 
+  // Função isolada para carregar os dados atualizados a qualquer momento
+  const fetchVehicleData = useCallback(
+    async (isCancelled: () => boolean) => {
+      setLoading(true);
+      try {
+        const [v, t, r] = await Promise.all([
+          getVehicleById(vehicleId),
+          getTripsByVehicle(vehicleId),
+          getRefuelsByVehicle(vehicleId),
+        ]);
+        if (isCancelled()) return;
+        setVehicle(v ?? null);
+        setTrips(t);
+        setRefuels(r);
+      } catch (error) {
+        console.error("Erro ao carregar dados do veículo:", error);
+      } finally {
+        if (!isCancelled()) setLoading(false);
+      }
+    },
+    [vehicleId],
+  );
+
   useEffect(() => {
     let cancelled = false;
-
-    async function fetchVehicle() {
-      setLoading(true);
-
-      const [v, t, r] = await Promise.all([
-        getVehicleById(vehicleId),
-        getTripsByVehicle(vehicleId),
-        getRefuelsByVehicle(vehicleId),
-      ]);
-
-      if (cancelled) return;
-      setVehicle(v ?? null);
-      setTrips(t);
-      setRefuels(r);
-      setLoading(false);
-    }
-
-    fetchVehicle();
-
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchVehicleData(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, [vehicleId]);
+  }, [fetchVehicleData]);
 
   useEffect(() => {
     if (!vehicleId) return;
-
-    QRCode.toDataURL(
-      JSON.stringify({
-        vehicleId,
-      }),
-    ).then(setQrCode);
+    QRCode.toDataURL(JSON.stringify({ vehicleId })).then(setQrCode);
   }, [vehicleId]);
 
   function startEditing() {
@@ -187,6 +173,7 @@ export default function VehicleProfilePage() {
         const intervaloDiasNum = intervaloDias ? Number(intervaloDias) : 0;
         const estaSendoConfiguradoAgora =
           !existing && (intervaloKmNum > 0 || intervaloDiasNum > 0);
+
         acc[key] = {
           intervaloKm: intervaloKmNum,
           intervaloDias: intervaloDiasNum,
@@ -199,6 +186,7 @@ export default function VehicleProfilePage() {
         return acc;
       }, {} as MaintenanceState);
 
+      // 1. Envia a alteração e aguarda a conclusão da gravação no banco
       await updateVehicle(vehicle.id, {
         model,
         plate,
@@ -211,14 +199,21 @@ export default function VehicleProfilePage() {
           : undefined,
         manutencao,
       });
-      await load();
+
+      // 2. Dispara a atualização imediata dos dados na tela consultando a API fresca
+      await fetchVehicleData(() => false);
+
+      // 3. Avisa ao Next.js para limpar caches de rotas internas no cliente
+      router.refresh();
       setEditing(false);
+    } catch (error) {
+      console.error("Erro ao salvar alterações do veículo:", error);
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) {
+  if (loading && !vehicle) {
     return <p className="text-zinc-500 p-8">Carregando veículo...</p>;
   }
 
@@ -227,7 +222,7 @@ export default function VehicleProfilePage() {
       <div className="p-8">
         <p className="text-zinc-500 mb-4">Veículo não encontrado.</p>
         <Button onClick={() => router.push("/admin/vehicles")}>
-          Voltar pra lista
+          Voltar para a lista
         </Button>
       </div>
     );
@@ -247,29 +242,28 @@ export default function VehicleProfilePage() {
 
   function getTripIndicators(trip: Trip) {
     const hasRefuel = refuels.some((r) => r.tripId === trip.id);
-
     const kmFim = trip.endKm ?? vehicle!.km;
     const hasMaintenance = MAINTENANCE_KEYS.some((key) => {
       const item = vehicle!.manutencao?.[key];
       if (!item?.ultimoKm) return false;
       return item.ultimoKm >= trip.startKm && item.ultimoKm <= kmFim;
     });
-
     return { hasRefuel, hasMaintenance };
   }
-  const totalTripPages = Math.max(1, Math.ceil(trips.length / TRIPS_PER_PAGE));
 
+  const totalTripPages = Math.max(1, Math.ceil(trips.length / TRIPS_PER_PAGE));
   const paginatedTrips = trips.slice(
     (tripPage - 1) * TRIPS_PER_PAGE,
     tripPage * TRIPS_PER_PAGE,
   );
+
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <button
         onClick={() => router.push("/admin/vehicles")}
         className="text-sm text-zinc-400 hover:text-white mb-6 flex items-center gap-1.5"
       >
-        ← Voltar pra lista
+        ← Voltar para a lista
       </button>
 
       {/* Cabeçalho */}
@@ -277,22 +271,11 @@ export default function VehicleProfilePage() {
         <Card className="mb-1 overflow-hidden">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
             <div className="flex gap-6">
-              <div
-                className="
-                h-24
-                w-24
-                rounded-3xl
-                flex
-                items-center
-                justify-center
-                shadow-xl
-                shrink-0
-                "
-              >
+              <div className="h-24 w-24 rounded-3xl flex items-center justify-center shadow-xl shrink-0">
                 <Car className="h-12 w-12 text-white" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-indigo-300 gap-3">
+                <p className="text-xs uppercase tracking-[0.3em] text-indigo-300">
                   Veículo
                 </p>
                 <h1 className="text-4xl font-bold text-white mt-1">
@@ -306,13 +289,9 @@ export default function VehicleProfilePage() {
             </div>
 
             <div className="w-full max-w-[200px]">
-              {" "}
               <Card>
-                {" "}
                 <CardContent className="p-3">
-                  {" "}
                   <div className="space-y-2">
-                    {" "}
                     {!editing ? (
                       <>
                         <Button
@@ -321,12 +300,11 @@ export default function VehicleProfilePage() {
                           className="w-full justify-start gap-2.5 rounded-xl h-9"
                           onClick={startEditing}
                         >
-                          <Pencil className="h-5 w-5" />{" "}
+                          <Pencil className="h-5 w-5" />
                           <span className="text-sm font-medium">
                             Editar veículo
-                          </span>{" "}
+                          </span>
                         </Button>
-
                         <Button
                           variant="secondary"
                           size="sm"
@@ -336,7 +314,6 @@ export default function VehicleProfilePage() {
                           <QrCode className="h-5 w-5" />
                           <span className="text-sm font-medium">QR Code</span>
                         </Button>
-
                         <Button
                           variant="destructive"
                           size="sm"
@@ -355,18 +332,18 @@ export default function VehicleProfilePage() {
                           size="sm"
                           className="w-full justify-start gap-2.5 rounded-xl h-9"
                           onClick={handleSave}
+                          disabled={saving}
                         >
                           <span className="text-sm font-medium">
-                            Salvar alterações
+                            {saving ? "A salvar..." : "Salvar alterações"}
                           </span>
                         </Button>
                         <Button
                           variant="secondary"
                           size="sm"
                           className="w-full justify-start gap-2.5 rounded-xl h-9"
-                          onClick={() => {
-                            setEditing(false);
-                          }}
+                          onClick={() => setEditing(false)}
+                          disabled={saving}
                         >
                           <span className="text-sm font-medium">Cancelar</span>
                         </Button>
@@ -428,6 +405,7 @@ export default function VehicleProfilePage() {
             {vehicle.km.toLocaleString("pt-BR")}
           </p>
         </div>
+
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <p className="text-xs text-zinc-500 mb-1">Combustível estimado</p>
           {nivelCombustivel !== undefined ? (
@@ -466,6 +444,7 @@ export default function VehicleProfilePage() {
             </div>
           )}
         </div>
+
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <p className="text-xs text-zinc-500 mb-1">Último motorista</p>
           <p className="text-lg font-medium">{vehicle.lastDriver ?? "—"}</p>
@@ -544,7 +523,7 @@ export default function VehicleProfilePage() {
         </div>
       </div>
 
-      {/* Histórico de viagens — timeline */}
+      {/* Histórico de viagens */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
         <h2 className="text-lg font-semibold mb-5">Últimas viagens</h2>
         {trips.length === 0 ? (
@@ -561,14 +540,9 @@ export default function VehicleProfilePage() {
 
               return (
                 <div key={trip.id} className="flex gap-4">
-                  {/* Coluna do timeline: bolinha + linha conectora */}
                   <div className="flex flex-col items-center w-3 shrink-0">
                     <span
-                      className={`w-3 h-3 rounded-full mt-5 shrink-0 ring-4 ${
-                        isOngoing
-                          ? "bg-green-500 ring-green-500/15"
-                          : "bg-indigo-500 ring-indigo-500/15"
-                      }`}
+                      className={`w-3 h-3 rounded-full mt-5 shrink-0 ring-4 ${isOngoing ? "bg-green-500 ring-green-500/15" : "bg-indigo-500 ring-indigo-500/15"}`}
                       aria-hidden="true"
                     />
                     {!isLast && (
@@ -576,30 +550,10 @@ export default function VehicleProfilePage() {
                     )}
                   </div>
 
-                  {/* Card da viagem */}
                   <button
                     type="button"
                     onClick={() => setSelectedTrip(trip)}
-                    className={`
-                    group
-                    flex-1
-                    min-w-0
-                    text-left
-                    bg-zinc-800/40
-                    border
-                    border-zinc-800
-                    rounded-2xl
-                    px-4
-                    py-3.5
-                    transition-all
-                    duration-200
-                    hover:border-indigo-500/40
-                    hover:bg-zinc-800/70
-                    hover:-translate-y-0.5
-                    hover:shadow-lg
-                    active:scale-[0.99]
-                    ${isLast ? "mb-0" : "mb-3"}
-                    `}
+                    className={`group flex-1 min-w-0 text-left bg-zinc-800/40 border border-zinc-800 rounded-2xl px-4 py-3.5 transition-all duration-200 hover:border-indigo-500/40 hover:bg-zinc-800/70 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.99] ${isLast ? "mb-0" : "mb-3"}`}
                   >
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <div className="flex items-center gap-2 min-w-0">
@@ -611,11 +565,7 @@ export default function VehicleProfilePage() {
                         </span>
                       </div>
                       <span
-                        className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${
-                          isOngoing
-                            ? "bg-green-500/10 text-green-400"
-                            : "bg-zinc-700/50 text-zinc-300"
-                        }`}
+                        className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${isOngoing ? "bg-green-500/10 text-green-400" : "bg-zinc-700/50 text-zinc-300"}`}
                       >
                         {isOngoing ? "Em andamento" : "Concluída"}
                       </span>
@@ -644,21 +594,13 @@ export default function VehicleProfilePage() {
                     {(hasRefuel || hasMaintenance) && (
                       <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-800 flex-wrap">
                         {hasRefuel && (
-                          <span
-                            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400"
-                            title="Abastecimento registrado nessa viagem"
-                          >
-                            <Fuel className="w-3 h-3" />
-                            Abastecimento
+                          <span className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400">
+                            <Fuel className="w-3 h-3" /> Abastecimento
                           </span>
                         )}
                         {hasMaintenance && (
-                          <span
-                            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400"
-                            title="Manutenção registrada por volta dessa viagem"
-                          >
-                            <Wrench className="w-3 h-3" />
-                            Manutenção
+                          <span className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400">
+                            <Wrench className="w-3 h-3" /> Manutenção
                           </span>
                         )}
                       </div>
@@ -667,31 +609,31 @@ export default function VehicleProfilePage() {
                 </div>
               );
             })}
+
             {trips.length > TRIPS_PER_PAGE && (
               <div className="mt-6 pt-5 border-t border-zinc-800 flex items-center justify-between">
                 <p className="text-sm text-zinc-500">
-                  Mostrando {(tripPage - 1) * TRIPS_PER_PAGE + 1}–
+                  A mostrar {(tripPage - 1) * TRIPS_PER_PAGE + 1}–
                   {Math.min(tripPage * TRIPS_PER_PAGE, trips.length)} de{" "}
                   {trips.length} viagens
                 </p>
-
                 <div className="flex items-center gap-2">
                   <Button
                     className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
                     disabled={tripPage === 1}
                     onClick={() => setTripPage((p) => p - 1)}
+                    aria-label="Página anterior"
                   >
                     ←
                   </Button>
-
                   <span className="text-sm text-zinc-400">
                     Página {tripPage} de {totalTripPages}
                   </span>
-
                   <Button
                     className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
                     disabled={tripPage === totalTripPages}
                     onClick={() => setTripPage((p) => p + 1)}
+                    aria-label="Próxima página"
                   >
                     →
                   </Button>
@@ -701,6 +643,7 @@ export default function VehicleProfilePage() {
           </div>
         )}
       </div>
+
       <Modal
         open={!!selectedQrVehicle}
         onClose={() => {
@@ -721,10 +664,8 @@ export default function VehicleProfilePage() {
               />
             </div>
           )}
-
           <div className="mt-6 text-center">
             <p className="text-lg font-semibold">{selectedQrVehicle?.model}</p>
-
             <p className="text-zinc-500">{selectedQrVehicle?.plate}</p>
           </div>
         </div>
