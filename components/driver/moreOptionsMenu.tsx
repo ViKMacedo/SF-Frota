@@ -12,6 +12,7 @@ interface MoreOptionsMenuProps {
   onOpenChange: (open: boolean) => void;
   onRefuel: () => void;
   onMaintenance: () => void;
+  onHelp: () => void;
 }
 
 export function MoreOptionsMenu({
@@ -19,6 +20,7 @@ export function MoreOptionsMenu({
   onOpenChange,
   onRefuel,
   onMaintenance,
+  onHelp,
 }: MoreOptionsMenuProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -33,7 +35,7 @@ export function MoreOptionsMenu({
               onOpenChange(false);
               onRefuel();
             }}
-            className="w-full h-12 rounded-2xl text-xl font-semibold bg-green-500 text-zinc-100 border border-green-500 hover:bg-green-400 transition"
+            className="w-full h-12 rounded-2xl text-xl font-semibold bg-green-500 p-2.5 rounded-xl text-green-50"
           >
             Abastecer
           </button>
@@ -49,12 +51,13 @@ export function MoreOptionsMenu({
           </button>
 
           <button
-            disabled
-            aria-disabled="true"
-            className="w-full h-12 rounded-2xl text-xl font-semibold bg-red-500/40 text-zinc-100 border border-red-500/40 opacity-60 cursor-not-allowed flex items-center justify-center gap-2"
+            onClick={() => {
+              onOpenChange(false);
+              onHelp();
+            }}
+            className="w-full h-12 rounded-2xl text-xl font-semibold bg-red-600 p-2.5 rounded-xl text-red-50"
           >
             Ajuda
-            <span className="text-xs font-normal">(em breve)</span>
           </button>
         </div>
       </DialogContent>

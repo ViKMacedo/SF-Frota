@@ -18,6 +18,7 @@ import { RefuelModal } from "@/components/driver/refuelModal";
 import { FuelIndicatorCard } from "@/components/driver/fuelIndicatorCard";
 import { MoreOptionsMenu } from "@/components/driver/moreOptionsMenu";
 import { MaintenanceModal } from "@/components/driver/maintenanceModal";
+import { SocorroModal } from "@/components/driver/socorroModal";
 
 // Ícones do Lucide para bater com o Mock
 import {
@@ -68,6 +69,7 @@ export default function DriverRunningPage() {
   const [refuelOpen, setRefuelOpen] = useState(false);
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [time, setTime] = useState("00:00");
   const [speed, setSpeed] = useState(0);
   const [statusLabel, setStatusLabel] = useState<TrackingStatus>(
@@ -326,7 +328,7 @@ export default function DriverRunningPage() {
 
           <button
             onClick={() => {
-              /* lógica de emergência */
+              setHelpOpen(true);
             }}
             className="flex items-center gap-3 p-4 bg-[#251218]/70 hover:bg-[#381B24]/70 border border-red-500/20 rounded-2xl text-left transition-colors"
           >
@@ -381,6 +383,7 @@ export default function DriverRunningPage() {
           onOpenChange={setMoreOptionsOpen}
           onRefuel={() => setRefuelOpen(true)}
           onMaintenance={() => setMaintenanceOpen(true)}
+          onHelp={() => setHelpOpen(true)}
         />
       )}
 
@@ -414,6 +417,15 @@ export default function DriverRunningPage() {
           vehicle={vehicle}
           currentKm={trip.startKm}
           onSuccess={(updatedVehicle) => setVehicle(updatedVehicle)}
+        />
+      )}
+      {vehicle && trip && session && (
+        <SocorroModal
+          open={helpOpen}
+          onClose={() => setHelpOpen(false)}
+          trip={trip}
+          vehicle={vehicle}
+          driverName={session.name}
         />
       )}
     </MobileLayout>
