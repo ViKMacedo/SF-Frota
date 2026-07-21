@@ -20,6 +20,7 @@ import {
   Flag,
   Navigation,
   CheckCircle2,
+  ShieldAlert,
 } from "lucide-react";
 
 export default function DriverEndPage() {
@@ -63,7 +64,7 @@ export default function DriverEndPage() {
     loadTrip();
   }, [router]);
 
-  async function handleFinishTrip() {
+  async function handleFinishTrip(sendToMaintenance = false) {
     if (!trip?.id) return;
     const parsed = Number(endKm);
     if (!endKm) {
@@ -95,14 +96,18 @@ export default function DriverEndPage() {
 
     const distance = parsed - trip.startKm;
 
-    await finishTrip(trip.id, {
-      endKm: parsed,
-      distance,
-      endedAt: endedAt.toISOString(),
-      duration,
-      status: "Finalizada",
-      synced: false,
-    });
+    await finishTrip(
+      trip.id,
+      {
+        endKm: parsed,
+        distance,
+        endedAt: endedAt.toISOString(),
+        duration,
+        status: "Finalizada",
+        synced: false,
+      },
+      sendToMaintenance ? "Em manutenção" : "Disponível",
+    );
     router.push("/driver/success");
   }
 
@@ -229,7 +234,7 @@ export default function DriverEndPage() {
               km
             </span>
           </div>
-          <p className="text-sm text-zinc-400 mt-1.5 pl-1">
+          <p className="text-base text-zinc-400 mt-1.5 pl-1">
             Informe o odômetro atual do veículo
           </p>
           {error && <p className="text-red-500 mt-2 font-medium">{error}</p>}
@@ -245,7 +250,7 @@ export default function DriverEndPage() {
                   <Navigation className="h-5 w-5" />
                 </div>
                 <div className="gap-3">
-                  <p className="text-xs text-zinc-400">Percorrido</p>
+                  <p className="text-sm text-zinc-400">Percorrido</p>
                   <p className="text-xl font-bold text-emerald-400">
                     {distanceCalculated} km
                   </p>
@@ -261,13 +266,22 @@ export default function DriverEndPage() {
       </div>
 
       {/* Botão de Finalização no Rodapé */}
-      <div className="w-full pt-6 mt-8 border-t border-white/5">
+      <div className="flex flex-col gap-3 border-t border-white/5">
         <Button
-          onClick={handleFinishTrip}
-          className="w-full h-14 bg-zinc-900 border border-white/10 hover:bg-zinc-850 text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg"
+          onClick={() => handleFinishTrip(false)}
+          className="w-full h-14 bg-green-600 border border-white/10 hover:bg-zinc-850 text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg"
         >
           <Flag className="h-5 w-5" />
           Finalizar utilização
+        </Button>
+
+        <Button
+          variant="outline"
+          onClick={() => handleFinishTrip(true)}
+          className="w-full h-14 bg-yellow-900 border border-white/10 hover:bg-zinc-850 text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg"
+        >
+          <ShieldAlert className="h-5 w-5" />
+          Finalizar e colocar em manutenção
         </Button>
       </div>
     </MobileLayout>

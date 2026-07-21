@@ -55,7 +55,11 @@ export async function getActiveTrip() {
     .first();
 }
 
-export async function finishTrip(id: string, data: Partial<Trip>) {
+export async function finishTrip(
+  id: string,
+  data: Partial<Trip>,
+  vehicleStatus: Vehicle["status"] = "Disponível",
+) {
   let updatedTrip: Trip | undefined;
   let updatedVehicle: Vehicle | undefined;
 
@@ -67,7 +71,7 @@ export async function finishTrip(id: string, data: Partial<Trip>) {
     updatedTrip = await db.trips.get(id);
 
     await db.vehicles.update(trip.vehicleId, {
-      status: "Disponível",
+      status: vehicleStatus,
       km: data.endKm,
       lastDriver: trip.driverName,
       lastUsedAt: new Date().toISOString(),

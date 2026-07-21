@@ -47,14 +47,19 @@ export function FuelIndicatorCard({
         <Fuel
           className={`w-3.5 h-3.5 ${iconColor} ${isLow ? "animate-pulse" : ""}`}
         />
-        <p className="text-xs text-zinc-500">Combustível estimado</p>
+        <p
+          className="text-base
+         text-zinc-500"
+        >
+          Combustível estimado
+        </p>
       </div>
       <div className="flex items-baseline gap-1.5 mb-2">
         <span className="text-2xl font-bold tracking-tight tabular-nums transition-all duration-700 ease-out">
           {Math.round(displayNivel)}%
         </span>
         {autonomia !== undefined && (
-          <span className="text-xs text-zinc-500">
+          <span className="text-sm text-zinc-500">
             &middot; ~{autonomia} km de autonomia
           </span>
         )}

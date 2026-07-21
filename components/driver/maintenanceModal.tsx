@@ -102,10 +102,10 @@ export function MaintenanceModal({
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle className="text-white">
+                <DialogTitle className="text-white text-xl">
                   Registrar manutenção
                 </DialogTitle>
-                <DialogDescription className="text-zinc-400">
+                <DialogDescription className="text-zinc-400 text-lg">
                   Toque no item que foi feito agora. Vai gravar o KM e a data de
                   hoje como referência.
                 </DialogDescription>
@@ -122,11 +122,11 @@ export function MaintenanceModal({
                       className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 text-left hover:bg-zinc-800 active:bg-zinc-800/70 transition disabled:opacity-50 min-h-14"
                     >
                       <div>
-                        <p className="text-white text-sm font-medium">
+                        <p className="text-white text-lg font-medium">
                           {MAINTENANCE_LABELS[key]}
                         </p>
                         {status && (
-                          <p className="text-zinc-500 text-xs mt-0.5 flex items-center gap-1.5">
+                          <p className="text-zinc-500 text-base mt-0.5 flex items-center gap-1.5">
                             <span
                               className={`w-1.5 h-1.5 rounded-full ${URGENCY_DOT[status.urgency]}`}
                               aria-hidden="true"
@@ -135,7 +135,7 @@ export function MaintenanceModal({
                           </p>
                         )}
                       </div>
-                      <span className="text-zinc-500 text-xs">
+                      <span className="text-zinc-500 text-base">
                         {savingKey === key ? "Salvando..." : "Registrar"}
                       </span>
                     </button>
