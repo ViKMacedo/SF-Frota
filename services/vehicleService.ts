@@ -1,4 +1,11 @@
-import { db, type Vehicle, VehicleStatus } from "@/lib/db";
+import {
+  db,
+  MAINTENANCE_KEYS,
+  type MaintenanceKey,
+  type MaintenanceState,
+  type Vehicle,
+  VehicleStatus,
+} from "@/lib/db";
 import { addVehicleToQueue } from "@/services/syncQueueService";
 import { generateId } from "@/lib/generateId";
 
@@ -15,10 +22,11 @@ export async function getVehicleByPlate(
 ): Promise<Vehicle | undefined> {
   return await db.vehicles.where("plate").equals(plate).first();
 }
-export async function updateVehicleStatus(id: string, status: VehicleStatus) {
-  await db.vehicles.update(id, {
-    status,
-  });
+export async function updateVehicleStatus(
+  id: string,
+  status: VehicleStatus,
+) {
+  await updateVehicle(id, { status });
 }
 export async function createVehicle(vehicle: Omit<Vehicle, "id">) {
   const existing = await getVehicleByPlate(vehicle.plate);
@@ -50,6 +58,38 @@ export type VehicleWithUsage = Vehicle & {
   totalTrips: number;
   totalKmDriven: number;
 };
+
+export async function releaseFromMaintenance(
+  id: string,
+  completedItems: MaintenanceKey[],
+) {
+  const vehicle = await db.vehicles.get(id);
+  if (!vehicle) {
+    throw new Error("Veículo não encontrado");
+  }
+
+  const nowIso = new Date().toISOString();
+
+  const manutencao = MAINTENANCE_KEYS.reduce((acc, key) => {
+    const existing = vehicle.manutencao?.[key] ?? {
+      intervaloKm: 0,
+      intervaloDias: 0,
+      ultimoKm: 0,
+      ultimaData: "",
+    };
+
+    acc[key] = completedItems.includes(key)
+      ? { ...existing, ultimoKm: vehicle.km, ultimaData: nowIso }
+      : existing;
+
+    return acc;
+  }, {} as MaintenanceState);
+
+  await updateVehicle(id, {
+    status: "Disponível",
+    manutencao,
+  });
+}
 
 export async function getVehiclesWithUsage(): Promise<VehicleWithUsage[]> {
   const vehicles = await db.vehicles.toArray();

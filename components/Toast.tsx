@@ -26,7 +26,7 @@ export function Toast({ toast, onClose }: ToastProps) {
   return (
     <div
       className={`
-        fixed top-4 left-1/2 -translate-x-1/2 z-50
+        fixed top-4 left-1/2 -translate-x-1/2 z-[9999]
         flex items-center gap-3
         px-4 py-3 rounded-2xl border
         text-sm font-medium shadow-xl
