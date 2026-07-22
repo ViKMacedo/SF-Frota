@@ -111,13 +111,10 @@ function mapRefuel(refuel: {
         createdAt: refuel.created_at,
     };
 }
-
 export async function bootstrapDatabase(token: string) {
     const res = await fetch("/api/bootstrap", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
     });
 
@@ -133,28 +130,79 @@ export async function bootstrapDatabase(token: string) {
 
     await db.transaction(
         "rw",
-        [db.drivers, db.vehicles, db.trips, db.settings, db.refuels],
+        [
+            db.drivers,
+            db.vehicles,
+            db.trips,
+            db.settings,
+            db.refuels,
+            db.syncQueue,
+        ],
         async () => {
-            const unsyncedTrips = await db.trips
-                .filter((t) => t.synced === false)
+            // Coleta os IDs de cada entidade que ainda têm alterações pendentes
+            // de sincronização — esses registros NÃO podem ser sobrescritos pelo
+            // snapshot do servidor, senão a edição local se perde silenciosamente.
+            const pendingQueue = await db.syncQueue
+                .filter((item) => !item.synced)
                 .toArray();
 
-            await db.drivers.clear();
-            await db.vehicles.clear();
-            await db.trips.filter((t: Trip) => t.synced !== false).delete();
-            await db.refuels.clear();
+            const pendingIdsByEntity = {
+                driver: new Set(
+                    pendingQueue.filter((i) => i.entity === "driver").map((i) =>
+                        i.payload.id
+                    ),
+                ),
+                vehicle: new Set(
+                    pendingQueue.filter((i) => i.entity === "vehicle").map((
+                        i,
+                    ) => i.payload.id),
+                ),
+                trip: new Set(
+                    pendingQueue.filter((i) => i.entity === "trip").map((i) =>
+                        i.payload.id
+                    ),
+                ),
+                refuel: new Set(
+                    pendingQueue.filter((i) => i.entity === "refuel").map((i) =>
+                        i.payload.id
+                    ),
+                ),
+            };
 
-            await db.drivers.bulkPut(data.drivers);
-            await db.vehicles.bulkPut(vehicles);
-            await db.refuels.bulkPut(refuels);
+            await db.drivers
+                .filter((d) => !pendingIdsByEntity.driver.has(d.id))
+                .delete();
+            await db.vehicles
+                .filter((v) => !pendingIdsByEntity.vehicle.has(v.id))
+                .delete();
+            await db.trips
+                .filter((t) => !pendingIdsByEntity.trip.has(t.id!))
+                .delete();
+            await db.refuels
+                .filter((r) => !pendingIdsByEntity.refuel.has(r.id!))
+                .delete();
 
-            const unsyncedIds = new Set(unsyncedTrips.map((t) => t.id));
-            const serverTripsToWrite = trips.filter(
-                (t: { id: string }) => !unsyncedIds.has(t.id),
+            await db.drivers.bulkPut(
+                data.drivers.filter((d: { id: string }) =>
+                    !pendingIdsByEntity.driver.has(d.id)
+                ),
             );
-            await db.trips.bulkPut(serverTripsToWrite);
+            await db.vehicles.bulkPut(
+                vehicles.filter((v: Vehicle) =>
+                    !pendingIdsByEntity.vehicle.has(v.id!)
+                ),
+            );
+            await db.refuels.bulkPut(
+                refuels.filter((r: Refuel) =>
+                    !pendingIdsByEntity.refuel.has(r.id!)
+                ),
+            );
+            await db.trips.bulkPut(
+                trips.filter((t: { id: string }) =>
+                    !pendingIdsByEntity.trip.has(t.id)
+                ),
+            );
 
-            // Salva settings do servidor se existirem
             if (data.settings) {
                 await db.settings.put(data.settings as Settings);
             }
