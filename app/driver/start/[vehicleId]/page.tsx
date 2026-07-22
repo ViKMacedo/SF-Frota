@@ -7,6 +7,8 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Toast } from "@/components/Toast";
+import { useToast } from "@/hooks/useToast";
 
 import { db, type Vehicle } from "@/lib/db";
 import { createTrip, getActiveTrip } from "@/services/tripService";
@@ -27,12 +29,26 @@ import {
   Route,
 } from "lucide-react";
 
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  timeoutMessage: string,
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(timeoutMessage)), ms),
+    ),
+  ]);
+}
+
 export default function DriverStartPage({
   params,
 }: {
   params: Promise<{ vehicleId: string }>;
 }) {
   const router = useRouter();
+  const { toast, showToast, clearToast } = useToast();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [licenseWarning, setLicenseWarning] = useState<{
@@ -66,7 +82,11 @@ export default function DriverStartPage({
 
   async function proceedWithStart() {
     try {
-      const activeTrip = await getActiveTrip();
+      const activeTrip = await withTimeout(
+        getActiveTrip(),
+        15000,
+        "Não foi possível verificar viagens ativas a tempo.",
+      );
 
       if (activeTrip) {
         router.push("/driver/running");
@@ -75,22 +95,34 @@ export default function DriverStartPage({
 
       if (!vehicle || !session) return;
 
-      const position = await getCurrentPosition();
+      const position = await withTimeout(
+        getCurrentPosition(),
+        15000,
+        "Não foi possível obter sua localização a tempo. Verifique o GPS e tente novamente.",
+      );
 
-      await createTrip({
-        vehicleId: vehicle.id!,
-        vehicleModel: vehicle.model,
-        vehiclePlate: vehicle.plate,
-        driverId: session.userId!,
-        driverName: session.name,
-        startedAt: new Date().toISOString(),
-        status: "Em andamento",
-        synced: false,
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      });
+      await withTimeout(
+        createTrip({
+          vehicleId: vehicle.id!,
+          vehicleModel: vehicle.model,
+          vehiclePlate: vehicle.plate,
+          driverId: session.userId!,
+          driverName: session.name,
+          startedAt: new Date().toISOString(),
+          status: "Em andamento",
+          synced: false,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        }),
+        15000,
+        "Não foi possível iniciar a viagem a tempo. Tente novamente.",
+      );
 
       router.push("/driver/running");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro ao iniciar viagem";
+      showToast(message, "error");
     } finally {
       setSubmitting(false);
     }
@@ -105,17 +137,29 @@ export default function DriverStartPage({
       return;
     }
 
-    const driver = await getDriverById(session.userId!);
-    if (driver) {
-      const requiredCategory = inferRequiredLicense(vehicle.type);
-      if (!canDriveVehicle(driver.license, requiredCategory)) {
-        setLicenseWarning({
-          driverLicense: driver.license,
-          requiredCategory,
-        });
-        setSubmitting(false);
-        return;
+    try {
+      const driver = await withTimeout(
+        getDriverById(session.userId!),
+        10000,
+        "Não foi possível validar seus dados a tempo.",
+      );
+      if (driver) {
+        const requiredCategory = inferRequiredLicense(vehicle.type);
+        if (!canDriveVehicle(driver.license, requiredCategory)) {
+          setLicenseWarning({
+            driverLicense: driver.license,
+            requiredCategory,
+          });
+          setSubmitting(false);
+          return;
+        }
       }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro ao validar motorista";
+      showToast(message, "error");
+      setSubmitting(false);
+      return;
     }
 
     await proceedWithStart();
@@ -131,6 +175,8 @@ export default function DriverStartPage({
 
   return (
     <MobileLayout className="p-4 flex flex-col justify-between min-h-screen">
+      <Toast toast={toast} onClose={clearToast} />
+
       <div>
         <button
           onClick={() => router.back()}
