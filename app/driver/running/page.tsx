@@ -31,7 +31,7 @@ import {
   Flag,
 } from "lucide-react";
 
-const MIN_POINT_INTERVAL_MS = 5000;
+const MIN_UI_UPDATE_INTERVAL_MS = 1000;
 
 const GPS_ERROR_MESSAGES: Record<
   number,
@@ -78,7 +78,7 @@ export default function DriverRunningPage() {
   const [gpsError, setGpsError] = useState<GpsError>(null);
 
   const accelRef = useRef<number>(0);
-  const lastPointTsRef = useRef<number>(0);
+  const lastUiUpdateTsRef = useRef<number>(0);
 
   useEffect(() => {
     async function loadTrip() {
@@ -163,12 +163,13 @@ export default function DriverRunningPage() {
         const accel = accelRef.current;
         const label =
           kmh > 5 ? TRACKING_STATUS.EN_ROUTE : TRACKING_STATUS.STOPPED;
-
-        setSpeed(kmh);
-        setStatusLabel(label);
         const now = Date.now();
-        if (now - lastPointTsRef.current < MIN_POINT_INTERVAL_MS) return;
-        lastPointTsRef.current = now;
+        if (now - lastUiUpdateTsRef.current >= MIN_UI_UPDATE_INTERVAL_MS) {
+          lastUiUpdateTsRef.current = now;
+          setSpeed(kmh);
+          setStatusLabel(label);
+        }
+
         const newPoint: RoutePoint = {
           lat: latitude,
           lng: longitude,
