@@ -34,7 +34,7 @@ export default function DriverSuccessPage() {
   if (!trip) return null;
 
   return (
-    <MobileLayout className="bg-zinc-950">
+    <MobileLayout>
       <div className="flex-1 flex flex-col items-center justify-center text-center">
         <div className="w-24 h-24 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-5xl text-green-400 mb-8">
           ✓
@@ -65,7 +65,7 @@ export default function DriverSuccessPage() {
       <Button
         onClick={handleLogout}
         variant="secondary"
-        className="w-full h-12 rounded-2xl text-base font-semibold"
+        className="w-full h-12 rounded-2xl text-xl font-semibold"
       >
         Sair
       </Button>

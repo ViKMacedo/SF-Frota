@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import { Sidebar } from "@/components/admin/sidebar";
+import { AutoSync } from "@/components/AutoSync";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAdminPull } from "@/hooks/useAdminPull";
 import { clearSession, getSession } from "@/services/sessionService";
@@ -53,6 +54,7 @@ export default function AdminLayout({
 
   return (
     <div className="flex min-h-screen bg-black text-white">
+      <AutoSync />
       {/* Sidebar */}
       <aside className="w-72 border-r border-zinc-800 p-6 flex flex-col">
         {/* Logo */}

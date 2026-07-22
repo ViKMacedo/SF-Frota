@@ -23,6 +23,7 @@ import {
   deleteVehicle,
 } from "@/services/vehicleService";
 import { getTripsByVehicle } from "@/services/tripService";
+import { syncPendingItems } from "@/services/syncService";
 import {
   estimateFuelLevel,
   estimateRangeKm,
@@ -202,7 +203,7 @@ export default function VehicleProfilePage() {
 
       // 2. Dispara a atualização imediata dos dados na tela consultando a API fresca
       await fetchVehicleData(() => false);
-
+      syncPendingItems().catch(() => {});
       // 3. Avisa ao Next.js para limpar caches de rotas internas no cliente
       router.refresh();
       setEditing(false);

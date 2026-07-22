@@ -18,6 +18,7 @@ import { RefuelModal } from "@/components/driver/refuelModal";
 import { FuelIndicatorCard } from "@/components/driver/fuelIndicatorCard";
 import { MoreOptionsMenu } from "@/components/driver/moreOptionsMenu";
 import { MaintenanceModal } from "@/components/driver/maintenanceModal";
+import { SocorroModal } from "@/components/driver/socorroModal";
 
 // Ícones do Lucide para bater com o Mock
 import {
@@ -30,7 +31,7 @@ import {
   Flag,
 } from "lucide-react";
 
-const MIN_POINT_INTERVAL_MS = 5000;
+const MIN_UI_UPDATE_INTERVAL_MS = 1000;
 
 const GPS_ERROR_MESSAGES: Record<
   number,
@@ -68,6 +69,7 @@ export default function DriverRunningPage() {
   const [refuelOpen, setRefuelOpen] = useState(false);
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [time, setTime] = useState("00:00");
   const [speed, setSpeed] = useState(0);
   const [statusLabel, setStatusLabel] = useState<TrackingStatus>(
@@ -76,7 +78,7 @@ export default function DriverRunningPage() {
   const [gpsError, setGpsError] = useState<GpsError>(null);
 
   const accelRef = useRef<number>(0);
-  const lastPointTsRef = useRef<number>(0);
+  const lastUiUpdateTsRef = useRef<number>(0);
 
   useEffect(() => {
     async function loadTrip() {
@@ -161,12 +163,13 @@ export default function DriverRunningPage() {
         const accel = accelRef.current;
         const label =
           kmh > 5 ? TRACKING_STATUS.EN_ROUTE : TRACKING_STATUS.STOPPED;
-
-        setSpeed(kmh);
-        setStatusLabel(label);
         const now = Date.now();
-        if (now - lastPointTsRef.current < MIN_POINT_INTERVAL_MS) return;
-        lastPointTsRef.current = now;
+        if (now - lastUiUpdateTsRef.current >= MIN_UI_UPDATE_INTERVAL_MS) {
+          lastUiUpdateTsRef.current = now;
+          setSpeed(kmh);
+          setStatusLabel(label);
+        }
+
         const newPoint: RoutePoint = {
           lat: latitude,
           lng: longitude,
@@ -326,7 +329,7 @@ export default function DriverRunningPage() {
 
           <button
             onClick={() => {
-              /* lógica de emergência */
+              setHelpOpen(true);
             }}
             className="flex items-center gap-3 p-4 bg-[#251218]/70 hover:bg-[#381B24]/70 border border-red-500/20 rounded-2xl text-left transition-colors"
           >
@@ -381,6 +384,7 @@ export default function DriverRunningPage() {
           onOpenChange={setMoreOptionsOpen}
           onRefuel={() => setRefuelOpen(true)}
           onMaintenance={() => setMaintenanceOpen(true)}
+          onHelp={() => setHelpOpen(true)}
         />
       )}
 
@@ -414,6 +418,15 @@ export default function DriverRunningPage() {
           vehicle={vehicle}
           currentKm={trip.startKm}
           onSuccess={(updatedVehicle) => setVehicle(updatedVehicle)}
+        />
+      )}
+      {vehicle && trip && session && (
+        <SocorroModal
+          open={helpOpen}
+          onClose={() => setHelpOpen(false)}
+          trip={trip}
+          vehicle={vehicle}
+          driverName={session.name}
         />
       )}
     </MobileLayout>

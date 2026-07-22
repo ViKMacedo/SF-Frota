@@ -110,7 +110,7 @@ export async function addRefuelToQueue(
 /** Retorna apenas itens que ainda não excederam o limite de retentativas */
 export async function getPendingQueue() {
   return await db.syncQueue
-    .filter((item) => !item.synced && item.retryCount < MAX_SYNC_RETRIES)
+    .filter((item) => !item.synced)
     .toArray();
 }
 
