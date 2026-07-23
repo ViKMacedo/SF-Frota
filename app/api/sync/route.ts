@@ -325,6 +325,7 @@ async function processRefuel(item: RefuelQueueItem) {
             litros: payload.litros,
             km_atual: payload.kmAtual,
             created_at: payload.createdAt,
+            tanque_cheio: payload.tanqueCheio ?? false,
         },
         { onConflict: "id" },
     );

@@ -5,13 +5,6 @@ import {
 } from "@/services/syncQueueService";
 import { generateId } from "@/lib/generateId";
 
-/**
- * Estima o % de combustível restante com base no km rodado desde o último
- * abastecimento registrado e no consumo médio configurado pro veículo.
- * Retorna undefined se o veículo não tiver consumoMedioKmL/capacidadeTanqueL
- * configurados (não dá pra estimar sem esses dados) — quem chama decide como
- * tratar a ausência (ex: esconder o indicador).
- */
 export function estimateFuelLevel(
     vehicle: Vehicle,
     currentKm: number,
@@ -52,8 +45,9 @@ interface RegisterRefuelParams {
     tripId?: string;
     driverId: string;
     driverName: string;
-    litros: number;
+    litros?: number;
     kmAtual: number;
+    tanqueCheio?: boolean;
 }
 
 /**
@@ -69,6 +63,7 @@ export async function registerRefuel({
     driverName,
     litros,
     kmAtual,
+    tanqueCheio = false,
 }: RegisterRefuelParams) {
     const vehicle = await db.vehicles.get(vehicleId);
     if (!vehicle) {
@@ -81,11 +76,29 @@ export async function registerRefuel({
     }
 
     const nivelAntesDoAbastecimento = estimateFuelLevel(vehicle, kmAtual) ?? 0;
-    const percentualAdicionado = (litros / vehicle.capacidadeTanqueL) * 100;
-    const novoNivel = Math.max(
-        0,
-        Math.min(100, nivelAntesDoAbastecimento + percentualAdicionado),
-    );
+    let litrosFinal: number;
+    let novoNivel: number;
+
+    if (tanqueCheio) {
+        // Tanque cheio: o nível vira 100% direto, e os litros são inferidos
+        // a partir do quanto faltava, só pra manter o histórico coerente —
+        // o motorista não precisa contar/medir nada.
+        const percentualFaltante = Math.max(0, 100 - nivelAntesDoAbastecimento);
+        litrosFinal = Math.round(
+            ((percentualFaltante / 100) * vehicle.capacidadeTanqueL) * 100,
+        ) / 100;
+        novoNivel = 100;
+    } else {
+        if (!litros || litros <= 0) {
+            throw new Error("Informe uma quantidade de litros válida.");
+        }
+        const percentualAdicionado = (litros / vehicle.capacidadeTanqueL) * 100;
+        litrosFinal = litros;
+        novoNivel = Math.max(
+            0,
+            Math.min(100, nivelAntesDoAbastecimento + percentualAdicionado),
+        );
+    }
 
     const refuel = {
         id: generateId(),
@@ -93,9 +106,10 @@ export async function registerRefuel({
         tripId,
         driverId,
         driverName,
-        litros,
+        litros: litrosFinal,
         kmAtual,
         createdAt: new Date().toISOString(),
+        tanqueCheio,
     };
 
     await db.refuels.add(refuel);

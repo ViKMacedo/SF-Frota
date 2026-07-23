@@ -107,6 +107,7 @@ export interface Refuel {
   litros: number;
   kmAtual: number;
   createdAt: string; // ISO
+  tanqueCheio?: boolean;
 }
 
 export type MaintenanceKey = "oleo" | "pneus" | "freios" | "filtros";

@@ -99,6 +99,7 @@ function mapRefuel(refuel: {
     litros: number;
     km_atual: number;
     created_at: string;
+    tanque_cheio: boolean;
 }): Refuel {
     return {
         id: refuel.id,
@@ -109,6 +110,7 @@ function mapRefuel(refuel: {
         litros: refuel.litros,
         kmAtual: refuel.km_atual,
         createdAt: refuel.created_at,
+        tanqueCheio: refuel.tanque_cheio ?? false,
     };
 }
 export async function bootstrapDatabase(token: string) {
