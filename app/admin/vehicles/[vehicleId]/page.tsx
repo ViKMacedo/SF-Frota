@@ -72,6 +72,7 @@ export default function VehicleProfilePage() {
   const [status, setStatus] = useState<Vehicle["status"]>("Disponível");
   const [consumoMedioKmL, setConsumoMedioKmL] = useState("");
   const [capacidadeTanqueL, setCapacidadeTanqueL] = useState("");
+  const [nivelCombustivelEstimado, setNivelCombustivelEstimado] = useState(100);
   const [manutencaoForm, setManutencaoForm] = useState<
     Record<MaintenanceKey, { intervaloKm: string; intervaloDias: string }>
   >({
@@ -142,6 +143,11 @@ export default function VehicleProfilePage() {
     setStatus(vehicle.status);
     setConsumoMedioKmL(vehicle.consumoMedioKmL?.toString() ?? "");
     setCapacidadeTanqueL(vehicle.capacidadeTanqueL?.toString() ?? "");
+    setNivelCombustivelEstimado(
+      vehicle.nivelCombustivelEstimado !== undefined
+        ? Math.round(vehicle.nivelCombustivelEstimado)
+        : 100,
+    );
     setManutencaoForm(
       MAINTENANCE_KEYS.reduce(
         (acc, key) => {
@@ -198,6 +204,10 @@ export default function VehicleProfilePage() {
         capacidadeTanqueL: capacidadeTanqueL
           ? Number(capacidadeTanqueL)
           : undefined,
+        nivelCombustivelEstimado: capacidadeTanqueL
+          ? nivelCombustivelEstimado
+          : undefined,
+        ultimoAbastecimentoKm: capacidadeTanqueL ? Number(km) : undefined,
         manutencao,
       });
 
@@ -423,25 +433,50 @@ export default function VehicleProfilePage() {
             <p className="text-sm text-zinc-600">Não configurado</p>
           )}
           {editing && (
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              <FormInput
-                type="text"
-                inputMode="decimal"
-                placeholder="km/L"
-                value={consumoMedioKmL}
-                onChange={(e) =>
-                  setConsumoMedioKmL(e.target.value.replace(/[^0-9.]/g, ""))
-                }
-              />
-              <FormInput
-                type="text"
-                inputMode="decimal"
-                placeholder="Tanque (L)"
-                value={capacidadeTanqueL}
-                onChange={(e) =>
-                  setCapacidadeTanqueL(e.target.value.replace(/[^0-9.]/g, ""))
-                }
-              />
+            <div className="space-y-3 mt-3">
+              {capacidadeTanqueL && (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs text-zinc-400">
+                      Nível atual (ajuste manual)
+                    </label>
+                    <span className="text-sm font-semibold text-green-400">
+                      {nivelCombustivelEstimado}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={nivelCombustivelEstimado}
+                    onChange={(e) =>
+                      setNivelCombustivelEstimado(Number(e.target.value))
+                    }
+                    className="w-full accent-green-500"
+                  />
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <FormInput
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="km/L"
+                  value={consumoMedioKmL}
+                  onChange={(e) =>
+                    setConsumoMedioKmL(e.target.value.replace(/[^0-9.]/g, ""))
+                  }
+                />
+                <FormInput
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Tanque (L)"
+                  value={capacidadeTanqueL}
+                  onChange={(e) =>
+                    setCapacidadeTanqueL(e.target.value.replace(/[^0-9.]/g, ""))
+                  }
+                />
+              </div>
             </div>
           )}
         </div>
