@@ -79,10 +79,6 @@ export default function DriverEndPage() {
       setError("KM final deve ser maior que o KM inicial");
       return;
     }
-    if (parsed - trip.startKm > 2000) {
-      setError("Verifique o KM informado. Distância muito alta.");
-      return;
-    }
     setError("");
     const endedAt = new Date();
     const startedAt = new Date(trip.startedAt);
